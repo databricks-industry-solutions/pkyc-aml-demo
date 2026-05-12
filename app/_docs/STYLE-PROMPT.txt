@@ -1,0 +1,94 @@
+================================================================================
+COPY-PASTE STYLE PROMPT FOR FUTURE PROJECTS
+================================================================================
+
+Use this exact prompt to replicate the Transaction Screening demo style:
+
+---
+
+Create a modern dark dashboard interface with the following specifications:
+
+**Design Style:** Enterprise SaaS Dark Mode (Databricks/Vercel/Linear aesthetic)
+
+**Typography:**
+- Primary: DM Sans (weights: 400, 500, 700, 900)
+- Monospace: DM Mono (weights: 300, 400, 500)
+- CDN: https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap
+
+**Color Palette:**
+- Background: #0B2026 (deep navy)
+- Accent: #FF3621 (vibrant red/orange)
+- Cards: #0B2026 with rgba(238, 237, 233, 0.1) borders
+- Text: gray-100 primary, gray-400 secondary
+- Status: green (#10b981), amber (#f59e0b), red (#ef4444)
+- AI/ML: purple (#a855f7)
+
+**Component Style:**
+- Cards: rounded-xl (12px), p-6 (24px padding), subtle borders
+- Hover: border color change + transform translateY(-4px)
+- Transitions: 0.3s ease
+- Badges: text-xs, rounded, colored backgrounds (blue-900, purple-900, green-900)
+- Buttons: rounded-lg, px-6 py-3, font-medium
+
+**Layout:**
+- Framework: Tailwind CSS with dark mode
+- Grid: responsive (1/2/3 columns on mobile/tablet/desktop)
+- Spacing: generous (gap-6 = 24px between cards)
+- Breakpoints: md:768px, lg:1024px
+
+**Animations:**
+- Fade-in: 0.5s ease-out with translateY(10px)
+- Pulse: 2s infinite for active states
+- Smooth hover effects on all interactive elements
+
+**Visual Details:**
+- Generous whitespace throughout
+- Gradient accents: linear-gradient(135deg, #FF3621 0%, #FF5C4D 100%)
+- Custom scrollbars: 6px width, rounded, gray-700
+- Icons: Heroicons outline style, w-5 h-5
+- Data viz: semantic colors with subtle grid lines
+
+**Structure:**
+- Dark theme (class="dark" on html)
+- Card-based layout with clear hierarchy
+- Mobile-first responsive design
+- Subtle micro-interactions on hover/click
+
+---
+
+EXAMPLE CARD COMPONENT:
+<div class="bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava transition-all duration-300 hover:-translate-y-1">
+    <h3 class="text-xl font-bold text-white mb-2">Card Title</h3>
+    <p class="text-sm text-gray-400 mb-4">Description text</p>
+    <div class="flex gap-2">
+        <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Tag</span>
+    </div>
+</div>
+
+TAILWIND CONFIG:
+tailwind.config = {
+    darkMode: 'class',
+    theme: {
+        extend: {
+            colors: {
+                'databricks-navy': '#0B2026',
+                'databricks-lava': '#FF3621',
+                'dark-panel': '#0B2026',
+                'dark-border': 'rgba(238, 237, 233, 0.1)',
+            }
+        }
+    }
+}
+
+---
+
+KEY PHRASES TO USE:
+- "Modern dark dashboard"
+- "Enterprise SaaS aesthetic"
+- "Premium data platform UI"
+- "Databricks-style interface"
+- "Generous spacing and subtle animations"
+- "Card-based dark mode layout"
+
+================================================================================
+

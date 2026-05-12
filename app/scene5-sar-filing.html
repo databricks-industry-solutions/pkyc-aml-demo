@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAR Filing & Case Closure</title>
+    <link rel="icon" href="https://www.databricks.com/en-website-assets/favicon-32x32.png?v=c9b9916c3b27dc51866c46b79a6e9b88" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="theme-config.js"></script>
+    <script src="demo-controls.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'databricks-navy': '#0B2026',
+                        'databricks-lava': '#FF3621',
+                        'databricks-oat-medium': '#EEEDE9',
+                        'databricks-oat-light': '#F9F7F4',
+                        'dark-bg': '#0B2026',
+                        'dark-panel': '#0B2026',
+                        'dark-border': 'rgba(238, 237, 233, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B2026;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        code, .font-mono {
+            font-family: 'DM Mono', monospace;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #334155;
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 3px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .timeline-dot {
+            animation: dotPulse 2s infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+            }
+        }
+
+        .success-checkmark {
+            animation: checkmarkDraw 0.8s ease-out;
+        }
+
+        @keyframes checkmarkDraw {
+            0% {
+                stroke-dasharray: 100;
+                stroke-dashoffset: 100;
+            }
+            100% {
+                stroke-dasharray: 100;
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .signature-line {
+            border-bottom: 2px solid #FF3621;
+            position: relative;
+        }
+
+        .signature-line::after {
+            content: '×';
+            position: absolute;
+            right: 10px;
+            bottom: -5px;
+            font-size: 20px;
+            color: #FF3621;
+            font-style: italic;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 2px solid #334155;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .submission-animation {
+            animation: submitPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes submitPulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
+        }
+
+        .signature-animate {
+            animation: signatureDraw 1.5s ease-out forwards;
+        }
+
+        @keyframes signatureDraw {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .progress-step {
+            opacity: 0;
+            animation: stepFadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes stepFadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Permanent Navigation Bar */
+        .demo-nav-bar {
+            opacity: 1;
+            height: 80px;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 h-screen overflow-hidden">
+    <!-- Main Container -->
+    <div class="flex flex-col" style="height: calc(100vh - 80px);">
+        <!-- Header -->
+        <div class="flex-shrink-0 bg-dark-panel border-b border-dark-border p-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <img src="DBLogo.png" alt="DB Logo" class="h-10 object-contain">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">MLRO Dashboard: SAR Filing & Case Closure</h1>
+                        <p class="text-gray-400 text-sm">Case ID: EDD-2025-271 • Subject: Dirk van Dijk • MLRO: Maria Rodriguez</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="text-right">
+                        <div class="text-xs text-gray-400">Case Status</div>
+                        <div class="text-lg font-bold text-yellow-400">Pending Approval</div>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">MR</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-hidden flex">
+            <!-- Left Panel: Case Summary -->
+            <div class="w-1/2 border-r border-dark-border flex flex-col">
+                <!-- Section Header -->
+                <div class="p-6 border-b border-dark-border bg-gradient-to-r from-purple-900 to-dark-panel">
+                    <h2 class="text-xl font-bold text-white">Case Summary & Evidence</h2>
+                    <p class="text-sm text-gray-400">Complete audit trail and findings</p>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4">
+                    <!-- Risk Score Card -->
+                    <div class="bg-red-900 bg-opacity-40 border-2 border-red-500 rounded-lg p-4 fade-in">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm text-red-400 mb-1">Final Risk Assessment</div>
+                                <div class="text-4xl font-bold text-red-300">CRITICAL</div>
+                                <div class="text-sm text-gray-300 mt-1">Risk Score: 0.92 (AI Model)</div>
+                            </div>
+                            <svg class="w-16 h-16 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Key Findings -->
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 fade-in">
+                        <h3 class="text-sm font-semibold text-white mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+                            </svg>
+                            Key Findings Summary
+                        </h3>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start">
+                                <span class="text-red-400 mr-2 font-bold">1.</span>
+                                <span class="text-gray-300"><strong>Beneficial Ownership in Sanctioned Entities:</strong> Indirect beneficial ownership in Maritime Holdings BV, sanctioned by EU/US for operating shadow fleet vessels</span>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-red-400 mr-2 font-bold">2.</span>
+                                <span class="text-gray-300"><strong>Layered Offshore Structure:</strong> Complex ownership through 3 shell companies (NL, Cayman Islands, Panama) designed to obscure beneficial ownership</span>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-red-400 mr-2 font-bold">3.</span>
+                                <span class="text-gray-300"><strong>Source of Funds Inconsistency:</strong> €56,700 in rapid transfers inconsistent with declared SME income (€120K annual). No legitimate economic purpose identified</span>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-red-400 mr-2 font-bold">4.</span>
+                                <span class="text-gray-300"><strong>Adverse Media - Sanctions Evasion:</strong> Subject's alias "D. van Dyke" mentioned in investigative reports related to shadow fleet operations (2022-2024)</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Evidence Timeline -->
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 fade-in">
+                        <h3 class="text-sm font-semibold text-white mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-databricks-lava" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                            Investigation Timeline
+                        </h3>
+                        <div class="space-y-3 text-xs">
+                            <div class="flex items-start">
+                                <div class="w-3 h-3 rounded-full bg-databricks-lava mt-1 mr-3 timeline-dot"></div>
+                                <div>
+                                    <p class="text-white font-semibold">Customer Onboarding</p>
+                                    <p class="text-gray-400">Initial KYC completed, risk score: LOW</p>
+                                    <p class="text-gray-500 text-xs">2025-10-22 14:23 CET</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="w-3 h-3 rounded-full bg-databricks-lava mt-1 mr-3 timeline-dot" style="animation-delay: 0.2s;"></div>
+                                <div>
+                                    <p class="text-white font-semibold">Real-Time Screening</p>
+                                    <p class="text-gray-400">First transactions cleared sanctions checks</p>
+                                    <p class="text-gray-500 text-xs">2025-10-22 15:47 CET</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="w-3 h-3 rounded-full bg-yellow-500 mt-1 mr-3 timeline-dot" style="animation-delay: 0.4s;"></div>
+                                <div>
+                                    <p class="text-white font-semibold">AI Monitoring Alert</p>
+                                    <p class="text-gray-400">Structuring pattern detected, Alert #271 triggered</p>
+                                    <p class="text-gray-500 text-xs">2025-10-29 09:47 CET</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="w-3 h-3 rounded-full bg-red-500 mt-1 mr-3 timeline-dot" style="animation-delay: 0.6s;"></div>
+                                <div>
+                                    <p class="text-white font-semibold">EDD Investigation</p>
+                                    <p class="text-gray-400">AI uncovered sanctions violations in 4m 23s</p>
+                                    <p class="text-gray-500 text-xs">2025-10-29 10:15 CET</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="w-3 h-3 rounded-full bg-purple-500 mt-1 mr-3 timeline-dot animate-pulse" style="animation-delay: 0.8s;"></div>
+                                <div>
+                                    <p class="text-white font-semibold">SAR Filing (Current)</p>
+                                    <p class="text-gray-400">Awaiting MLRO approval</p>
+                                    <p class="text-gray-500 text-xs">2025-10-29 11:32 CET</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Unity Catalog Audit Trail -->
+                    <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4 fade-in">
+                        <h3 class="text-sm font-semibold text-blue-300 mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            Unity Catalog Governance
+                        </h3>
+                        <div class="space-y-2 text-xs text-gray-300">
+                            <div class="flex justify-between">
+                                <span>Data Access Events:</span>
+                                <span class="font-bold text-white">47</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>PII Queries (Masked):</span>
+                                <span class="font-bold text-white">12</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>External Data Sources:</span>
+                                <span class="font-bold text-white">47</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>AI Model Inferences:</span>
+                                <span class="font-bold text-white">3</span>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-blue-800">
+                                <p class="text-blue-200">✓ Complete audit trail with data lineage</p>
+                                <p class="text-blue-200">✓ All actions logged and immutable</p>
+                                <p class="text-blue-200">✓ Regulatory-ready documentation</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analyst & Team -->
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 fade-in" style="max-height: 400px; overflow-y: auto;">
+                        <h3 class="text-sm font-semibold text-white mb-3">Investigation Team</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 bg-databricks-lava rounded-full flex items-center justify-center text-xs font-bold">JM</div>
+                                    <div>
+                                        <p class="text-white font-medium">John Martinez</p>
+                                        <p class="text-xs text-gray-400">Investigator (Tier 1)</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs text-green-400">✓ Reviewed</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-xs font-bold">MR</div>
+                                    <div>
+                                        <p class="text-white font-medium">Maria Rodriguez</p>
+                                        <p class="text-xs text-gray-400">MLRO</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs text-yellow-400">⏳ Pending</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: SAR Draft -->
+            <div class="w-1/2 flex flex-col">
+                <!-- Section Header -->
+                <div class="p-6 border-b border-dark-border bg-gradient-to-r from-blue-900 to-dark-panel">
+                    <h2 class="text-xl font-bold text-white">Suspicious Activity Report (SAR)</h2>
+                    <p class="text-sm text-gray-400">Auto-generated by LLM • Ready for submission</p>
+                </div>
+
+                <!-- SAR Content -->
+                <div class="flex-1 overflow-y-auto scrollbar-thin p-6">
+                    <div class="bg-white text-gray-900 rounded-lg p-8 shadow-2xl">
+                        <!-- SAR Header -->
+                        <div class="border-b-2 border-gray-300 pb-4 mb-6">
+                            <h1 class="text-2xl font-bold text-gray-900 mb-2">SUSPICIOUS ACTIVITY REPORT</h1>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p class="text-gray-600">Report ID:</p>
+                                    <p class="font-mono font-bold">SAR-2025-10-271</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">Date Filed:</p>
+                                    <p class="font-bold">29 October 2025</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">Reporting Institution:</p>
+                                    <p class="font-bold">[Bank Name]</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600">Case ID:</p>
+                                    <p class="font-mono font-bold">EDD-2025-271</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subject Information -->
+                        <div class="mb-6">
+                            <h2 class="text-lg font-bold text-gray-900 mb-3">I. SUBJECT INFORMATION</h2>
+                            <div class="bg-gray-50 rounded p-4 text-sm space-y-2">
+                                <p><strong>Name:</strong> Dirk van Dijk</p>
+                                <p><strong>Date of Birth:</strong> 24 March 1980</p>
+                                <p><strong>Known Aliases:</strong> D. van Dyke, D. Dijk, Dirk v.D.</p>
+                                <p><strong>Customer Since:</strong> 22 October 2025</p>
+                            </div>
+                        </div>
+
+                        <!-- Suspicious Activity Description -->
+                        <div class="mb-6">
+                            <h2 class="text-lg font-bold text-gray-900 mb-3">II. SUSPICIOUS ACTIVITY DESCRIPTION</h2>
+                            <div class="text-sm space-y-3">
+                                <p class="text-justify">
+                                    This report concerns a pattern of suspicious financial transactions identified through advanced AI-powered transaction monitoring systems. The subject, Dirk van Dijk, exhibited behavior consistent with <strong>structuring</strong> (also known as smurfing), designed to evade regulatory reporting thresholds.
+                                </p>
+                                <p class="text-justify">
+                                    Between 24 October 2025 and 29 October 2025, the subject executed <strong>six (6) deposit transactions</strong> ranging from EUR 9,000 to EUR 9,800, each deliberately positioned just below the EUR 10,000 regulatory reporting threshold. This pattern was flagged by our AI monitoring system with a risk score of 0.92 (critical).
+                                </p>
+                                <p class="text-justify">
+                                    Subsequent Enhanced Due Diligence (EDD) investigation revealed significantly more concerning findings:
+                                </p>
+                                <ul class="list-disc ml-6 space-y-1">
+                                    <li>Subject operates under multiple aliases, as evidenced by matches in the Panama Papers database (2016 leak)</li>
+                                    <li>Beneficial ownership in three (3) offshore shell companies: Maritime Holdings BV (Netherlands), Nautical Ventures Ltd (Cayman Islands), and Ocean Logistics SA (Panama)</li>
+                                    <li><strong>Critical Finding:</strong> These shell companies own four (4) tanker vessels identified on the EU and US sanctioned "shadow fleet" list for sanctions violations</li>
+                                    <li>The subject's transaction patterns and ownership structures indicate deliberate efforts to conceal the ultimate beneficial ownership and source of funds</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Supporting Evidence -->
+                        <div class="mb-6">
+                            <h2 class="text-lg font-bold text-gray-900 mb-3">III. SUPPORTING EVIDENCE</h2>
+                            <div class="bg-gray-50 rounded p-4 text-sm space-y-2">
+                                <p>✓ Transaction records (6 deposits totaling EUR 56,700)</p>
+                                <p>✓ AI risk assessment model output (AUC: 97.3%)</p>
+                                <p>✓ SHAP explainability analysis showing key risk factors</p>
+                                <p>✓ Panama Papers database match (94.7% confidence)</p>
+                                <p>✓ Corporate registry searches (3 offshore entities)</p>
+                                <p>✓ EU and OFAC sanctions list verification</p>
+                                <p>✓ Complete Unity Catalog audit trail (47 data access events)</p>
+                            </div>
+                        </div>
+
+                        <!-- Recommendation -->
+                        <div class="mb-6">
+                            <h2 class="text-lg font-bold text-gray-900 mb-3">IV. RECOMMENDATION</h2>
+                            <div class="bg-red-50 border-l-4 border-red-500 p-4 text-sm">
+                                <p class="text-justify">
+                                    Given the critical nature of these findings, particularly the connection to sanctioned entities, we recommend <strong>immediate account freeze</strong> and <strong>notification to relevant authorities</strong> including financial intelligence units and sanctions enforcement agencies. The subject's activities pose significant reputational and regulatory risk to the institution.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Signature Block -->
+                        <div class="mt-8 pt-6 border-t-2 border-gray-300">
+                            <div class="grid grid-cols-2 gap-8">
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-2">Prepared by:</p>
+                                    <p class="font-bold">John Martinez</p>
+                                    <p class="text-sm text-gray-600">Investigator (Tier 1)</p>
+                                    <div class="mt-4 pt-2 border-b-2 border-gray-400 text-right flex items-center justify-between">
+                                        <span class="text-green-600 text-sm flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            Signed
+                                        </span>
+                                        <span class="text-gray-600 italic text-xs">J. Martinez</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-2">Approved by:</p>
+                                    <p class="font-bold">Maria Rodriguez</p>
+                                    <p class="text-sm text-gray-600">Money Laundering Reporting Officer</p>
+                                    <div class="mt-4 pt-2 border-b-2 border-dashed border-blue-400 text-right">
+                                        <span class="text-blue-600 text-sm">⏳ Awaiting Signature</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-6 text-center italic">
+                                This report was generated with assistance from AI systems. All findings have been reviewed and verified by qualified compliance personnel.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="p-6 border-t border-dark-border bg-dark-panel space-y-3">
+                    <button onclick="openSubmissionModal()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2 text-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Approve & Submit SAR</span>
+                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="openRevisionModal()" class="bg-databricks-lava hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded transition-colors">
+                            Request Revision
+                        </button>
+                        <button onclick="openExportModal()" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors">
+                            Export PDF
+                        </button>
+                    </div>
+
+                    <!-- Success Message (Hidden by default, shown after approval) -->
+                    <div id="success-message" class="hidden bg-green-900 bg-opacity-40 border border-green-500 rounded-lg p-4 mt-4">
+                        <div class="flex items-center space-x-3">
+                            <svg class="w-8 h-8 text-green-400 success-checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <div>
+                                <p class="text-green-300 font-bold text-lg">SAR Filed Successfully</p>
+                                <p class="text-sm text-gray-300">Case EDD-2025-271 closed. Authorities notified. Account frozen.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SAR Submission Modal -->
+    <div id="submissionModal" class="modal">
+        <div class="modal-content">
+            <div class="p-8">
+                <!-- Header -->
+                <div class="text-center mb-6">
+                    <div class="flex justify-center mb-4">
+                        <div class="w-20 h-20 bg-databricks-lava rounded-full flex items-center justify-center submission-animation">
+                            <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2">Sharing SAR with DNB</h2>
+                    <p class="text-gray-400">Via Databricks Clean Room • De Nederlandsche Bank</p>
+                </div>
+
+                <!-- Signing Process -->
+                <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                    <h3 class="text-white font-semibold mb-4">Digital Signature Process</h3>
+                    
+                    <!-- Investigator Signature (Already Complete) -->
+                    <div class="mb-4 pb-4 border-b border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-databricks-lava rounded-full flex items-center justify-center text-sm font-bold">JM</div>
+                                <div>
+                                    <p class="text-white font-medium">John Martinez</p>
+                                    <p class="text-xs text-gray-400">Investigator (Tier 1)</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2 text-green-400">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm font-semibold">Signed</span>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            <span>Signed: 29 Oct 2025, 11:15 CET</span>
+                        </div>
+                    </div>
+
+                    <!-- MLRO Signature (In Progress) -->
+                    <div id="mlroSignature">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-sm font-bold">MR</div>
+                                <div>
+                                    <p class="text-white font-medium">Maria Rodriguez</p>
+                                    <p class="text-xs text-gray-400">Money Laundering Reporting Officer</p>
+                                </div>
+                            </div>
+                            <div id="mlroStatus" class="flex items-center space-x-2 text-databricks-lava">
+                                <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-sm font-semibold">Signing...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submission Progress -->
+                <div class="space-y-3">
+                    <div id="step1" class="progress-step flex items-center space-x-3 text-gray-400">
+                        <div class="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
+                            <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                        </div>
+                        <span class="text-sm">Validating report completeness...</span>
+                    </div>
+                    <div id="step2" class="progress-step flex items-center space-x-3 text-gray-400" style="animation-delay: 0.8s;">
+                        <div class="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
+                            <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                        </div>
+                        <span class="text-sm">Creating Databricks Clean Room...</span>
+                    </div>
+                    <div id="step3" class="progress-step flex items-center space-x-3 text-gray-400" style="animation-delay: 1.6s;">
+                        <div class="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
+                            <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                        </div>
+                        <span class="text-sm">Sharing via Delta Sharing protocol...</span>
+                    </div>
+                    <div id="step4" class="progress-step flex items-center space-x-3 text-gray-400" style="animation-delay: 2.4s;">
+                        <div class="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
+                            <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                        </div>
+                        <span class="text-sm">Awaiting DNB secure access confirmation...</span>
+                    </div>
+                </div>
+
+                <!-- Success Message (Hidden initially) -->
+                <div id="successMessage" class="hidden mt-6 bg-green-900 bg-opacity-40 border-2 border-green-500 rounded-lg p-6">
+                    <div class="flex items-start space-x-4">
+                        <svg class="w-8 h-8 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div class="flex-1">
+                            <p class="text-green-300 font-bold text-lg mb-2">SAR Successfully Submitted</p>
+                            <div class="text-sm text-gray-300 space-y-1">
+                                <p>✓ Report signed by MLRO Maria Rodriguez</p>
+                                <p>✓ Shared to DNB via Databricks Clean Room</p>
+                                <p>✓ Delta Sharing Token: <span class="font-mono">dnb.cleanroom.share.12ae45</span></p>
+                                <p>✓ DNB Reference: <span class="font-mono">DNB-2025-10-8471-SAR</span></p>
+                                <p>✓ Account frozen pending investigation</p>
+                                <p>✓ Case status updated to: <span class="text-green-400 font-semibold">Closed - Reported</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="closeSubmissionModal()" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        Complete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revision Request Modal -->
+    <div id="revisionModal" class="modal">
+        <div class="modal-content">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">Request Report Revision</h3>
+                <button onclick="closeRevisionModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                    <p class="text-yellow-300 text-sm">
+                        This report will be returned to <strong>John Martinez</strong> (Tier 1 Investigator) for revision. Please provide specific feedback on what changes are needed.
+                    </p>
+                </div>
+                
+                <div>
+                    <label class="text-gray-300 text-sm font-medium block mb-2">Revision Comments:</label>
+                    <textarea id="revisionComments" class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm" rows="6" placeholder="Enter specific revision requests..."></textarea>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button onclick="submitRevisionRequest()" class="flex-1 bg-databricks-lava hover:bg-opacity-90 text-white font-semibold py-3 px-4 rounded transition-colors">
+                        Send Revision Request
+                    </button>
+                    <button onclick="closeRevisionModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export PDF Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="p-8 text-center">
+                <div class="flex justify-center mb-6">
+                    <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                        </svg>
+                    </div>
+                </div>
+                
+                <h2 class="text-2xl font-bold text-white mb-4">Download SAR Report</h2>
+                <p class="text-gray-400 mb-6">Your PDF document is ready for download</p>
+                
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <svg class="w-10 h-10 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div class="text-left">
+                                <p class="text-white font-semibold">SAR-2025-10-271.pdf</p>
+                                <p class="text-xs text-gray-400">2.4 MB • Generated on 29 Oct 2025</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="downloadPDF()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors mb-3">
+                    Download PDF
+                </button>
+                <button onclick="closeExportModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="demo-nav-bar fixed bottom-0 left-0 right-0 bg-dark-panel border-t border-dark-border backdrop-blur-sm bg-opacity-90 z-50">
+        <div class="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+            <a href="demo-navigation.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-sm font-medium">Overview</span>
+            </a>
+            
+            <div class="flex items-center space-x-1 text-sm text-gray-400">
+                <span>Scene 5</span>
+                <span class="text-gray-600">of</span>
+                <span>6</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="scene4-edd-investigation.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    <span class="text-sm font-medium">Previous</span>
+                </a>
+                <a href="scene6-cco-dashboard.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-databricks-lava hover:bg-opacity-90 text-white transition-colors">
+                    <span class="text-sm font-medium">Next</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openSubmissionModal() {
+            document.getElementById('submissionModal').classList.add('active');
+            
+            // Start the submission sequence
+            setTimeout(() => {
+                // Step 1: Complete MLRO signature
+                completeMlroSignature();
+            }, 1500);
+            
+            setTimeout(() => {
+                // Step 2: Update progress steps
+                updateProgressStep('step1', 'Validating report completeness...', true);
+            }, 2000);
+            
+            setTimeout(() => {
+                updateProgressStep('step2', 'Creating Databricks Clean Room...', true);
+            }, 2800);
+            
+            setTimeout(() => {
+                updateProgressStep('step3', 'Sharing via Delta Sharing protocol...', true);
+            }, 3600);
+            
+            setTimeout(() => {
+                updateProgressStep('step4', 'Awaiting DNB secure access confirmation...', true);
+            }, 4400);
+            
+            setTimeout(() => {
+                updateProgressStep('step4', 'DNB secure access confirmed', true);
+                // Show success message
+                document.getElementById('successMessage').classList.remove('hidden');
+                document.getElementById('successMessage').classList.add('fade-in');
+            }, 5800);
+        }
+
+        function completeMlroSignature() {
+            const mlroStatus = document.getElementById('mlroStatus');
+            mlroStatus.innerHTML = `
+                <div class="flex items-center space-x-2 text-green-400 signature-animate">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-sm font-semibold">Signed</span>
+                </div>
+            `;
+            
+            // Add timestamp
+            const mlroSignature = document.getElementById('mlroSignature');
+            mlroSignature.innerHTML += `
+                <div class="mt-2 text-xs text-gray-500 signature-animate" style="animation-delay: 0.2s;">
+                    <span>Signed: 29 Oct 2025, 11:32 CET</span>
+                </div>
+            `;
+        }
+
+        function updateProgressStep(stepId, message, complete) {
+            const step = document.getElementById(stepId);
+            const icon = step.querySelector('.w-6');
+            const text = step.querySelector('span');
+            
+            if (complete) {
+                step.classList.remove('text-gray-400');
+                step.classList.add('text-green-400');
+                icon.innerHTML = `
+                    <svg class="w-6 h-6 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                `;
+                text.innerHTML = `✓ ${message}`;
+            }
+        }
+
+        function closeSubmissionModal() {
+            document.getElementById('submissionModal').classList.remove('active');
+            
+            // Update the UI to show SAR has been submitted
+            document.querySelector('.text-yellow-400').textContent = 'Submitted';
+            document.querySelector('.text-yellow-400').classList.remove('text-yellow-400');
+            document.querySelector('.text-lg.font-bold').classList.add('text-green-400');
+            
+            // Update Maria Rodriguez status to Reviewed
+            const mlroStatusElements = document.querySelectorAll('.text-yellow-400');
+            mlroStatusElements.forEach(el => {
+                if (el.textContent.includes('Pending')) {
+                    el.textContent = '✓ Reviewed';
+                    el.classList.remove('text-yellow-400');
+                    el.classList.add('text-green-400');
+                }
+            });
+            
+            // Show success message in main UI
+            const oldSuccessMsg = document.getElementById('success-message');
+            if (oldSuccessMsg) {
+                oldSuccessMsg.classList.remove('hidden');
+            }
+        }
+
+        // Revision Modal Functions
+        function openRevisionModal() {
+            document.getElementById('revisionModal').classList.add('active');
+        }
+
+        function closeRevisionModal() {
+            document.getElementById('revisionModal').classList.remove('active');
+        }
+
+        function submitRevisionRequest() {
+            const comments = document.getElementById('revisionComments').value;
+            
+            if (!comments.trim()) {
+                alert('Please enter revision comments before submitting.');
+                return;
+            }
+            
+            // Close the modal
+            closeRevisionModal();
+            
+            // Show success message
+            alert('✓ Revision Request Sent\n\nThe report has been returned to John Martinez (Tier 1 Investigator) with your feedback.\n\nRevision Comments:\n' + comments + '\n\nJohn will be notified via email and the workflow status has been updated to "Pending Revision".');
+            
+            // Update UI to reflect revision status
+            document.querySelector('.text-lg.font-bold.text-yellow-400').textContent = 'Pending Revision';
+            document.querySelector('.text-lg.font-bold.text-yellow-400').classList.remove('text-yellow-400');
+            document.querySelector('.text-lg.font-bold').classList.add('text-databricks-lava');
+        }
+
+        // Export Modal Functions
+        function openExportModal() {
+            document.getElementById('exportModal').classList.add('active');
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.remove('active');
+        }
+
+        function downloadPDF() {
+            // Simulate PDF download
+            alert('✓ PDF Download Started\n\nFile: SAR-2025-10-271.pdf\nSize: 2.4 MB\n\nThe document has been downloaded to your Downloads folder.');
+            closeExportModal();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.id === 'submissionModal') {
+                // Don't allow closing by clicking outside during submission
+                // closeSubmissionModal();
+            } else if (event.target.id === 'revisionModal') {
+                closeRevisionModal();
+            } else if (event.target.id === 'exportModal') {
+                closeExportModal();
+            }
+        }
+    </script>
+
+</body>
+</html>
+

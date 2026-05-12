@@ -1,94 +1,110 @@
+# Unified Databricks Asset Bundle: KYC/AML Industry Demo
+# Consolidates: KYC Agent (Scene 1), Fraud Detection Pipeline (Scene 2), Frontend App
+#
+# Deploy:  databricks bundle deploy --target dev
+
 bundle:
-  name: demo_workflow
+  name: kyc_aml_demo
 
 variables:
-  # Project name - replace with your solution accelerator name
-  project_name:
-    description: "Name of your solution accelerator"
-    default: "my-solution-accelerator"
-    
-  # The "warehouse_id" variable is used to reference the warehouse used by the dashboard.
-  warehouse_id:
-    lookup:
-      # Replace this with the name of your SQL warehouse.
-      warehouse: "Shared Unity Catalog Serverless"
-      
-  # Environment variable used for deployment paths
-  environment:
-    description: "Deployment environment (dev, staging, prod)"
-    default: "dev"
+  # Shared
+  catalog:
+    description: Unity Catalog name
+    default: main
+  schema:
+    description: Schema for all demo tables and UC functions
+    default: kyc_demo
+
+  # Scene 1 - KYC Agent
+  llm_endpoint:
+    description: Model serving endpoint for the agent LLM
+    default: databricks-meta-llama-3-3-70b-instruct
+
+  # Scene 2 - Fraud Detection Pipeline
+  sepa_table_name:
+    description: Source table for SEPA transactions
+    default: sepa_transactions
+  pipeline_name:
+    description: DLT pipeline name
+    default: SEPA KYC Demo Pipeline
+
+  # Workspace-specific values (genie_space_id, dashboard_embed_url, warehouse_id,
+  # lakebase_instance_name, mlflow_experiment_id) are NOT bundle variables — DAB cannot
+  # currently propagate them into a synced app.yaml. Configure them where they're consumed:
+  #   - app/app.yaml — GENIE_SPACE_ID, DASHBOARD_EMBED_URL (or via app UI Environment tab)
+  #   - notebooks/scene1_kyc_onboarding/03_kyc_agent_deploy.ipynb widgets — WAREHOUSE_ID
+  #   - agents/kyc_agent/app.yaml — patched at deploy time by 03_kyc_agent_deploy.ipynb
+
+sync:
+  paths:
+    - notebooks
+    - pipelines
+    - agents
+    - app
+    - volume_assets
+  exclude:
+    - "**/__pycache__"
+    - "**/.ipynb_checkpoints"
+    - "**/mlruns"
+    - "**/*.db"
+    - "**/_docs"
+    - "**/.DS_Store"
+
+# DAB syncs app/ but does not push it to compute. This hook runs after every
+# `databricks bundle deploy` and tells the running compute to use the synced source.
+experimental:
+  scripts:
+    # Push synced source to the running app. Idempotent start (no-op if already ACTIVE),
+    # then deploy. `--source-code-path` is required on first deploy after destroy.
+    postdeploy: |
+      databricks apps start kyc-aml-frontend --target ${bundle.target} 2>/dev/null || true
+      databricks apps deploy kyc-aml-frontend --target ${bundle.target} --source-code-path ${workspace.file_path}/app
+
+permissions:
+  - level: CAN_VIEW
+    group_name: users
+
+resources:
+  # ── Frontend App ────────────────────────────────────────────────────────
+  apps:
+    frontend:
+      name: kyc-aml-frontend
+      description: "KYC/AML Industry Demo - Interactive 6-scene frontend"
+      source_code_path: app
+      # Workspace-specific env (GENIE_SPACE_ID, DASHBOARD_EMBED_URL) must be set
+      # in app/app.yaml or via the app UI's Environment tab before/after deploy.
+      # DAB does not currently propagate env to synced app.yaml.
+
+  # ── Scene 2: DLT Fraud Detection Pipeline ──────────────────────────────
+  pipelines:
+    sepa_kyc_pipeline:
+      name: ${var.pipeline_name}
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      libraries:
+        - file:
+            path: pipelines/sepa_pipeline.py
+      configuration:
+        catalog_name: ${var.catalog}
+        schema_name: ${var.schema}
+        SEPA_SOURCE_TABLE: ${var.catalog}.${var.schema}.${var.sepa_table_name}
+        SEPA_FRAUD_MODEL_URI: models:/${var.catalog}.${var.schema}.sepa_fraud_model@Production
+      environment:
+        dependencies:
+          - flask>=3.0
+          - mlflow==3.11.1
+          - cloudpickle==3.1.2
+          - numpy>=1.26.4
+          - pandas>=1.5.3
+          - psutil==5.9.0
+          - pyarrow>=8.0.0
+          - scikit-learn>=1.7.2
+          - scipy>=1.10.0
+      continuous: true
+      serverless: true
+
 
 targets:
   dev:
-    default: true
     mode: development
-
-# Customize the resources below based on your solution accelerator needs
-resources:
-  # Uncomment and customize if you have Databricks Apps
-  # apps:
-  #   your_app:
-  #     name: "your-app-name"
-  #     description: "Your app description"
-  #     source_code_path: "/Users/${workspace.current_user.userName}/${var.project_name}-${var.environment}/files/apps/your_app"
-
-  # Uncomment and customize if you have dashboards
-  # dashboards:
-  #   your_dashboard:
-  #     display_name: "Your Dashboard"
-  #     file_path: "./dashboards/your_dashboard.lvdash.json"
-  #     warehouse_id: "${var.warehouse_id}"
-
-  # Example job workflow - customize based on your notebooks
-  jobs:
-    example_workflow:
-      name: "${var.project_name} - Example Workflow"
-      tasks:
-        - task_key: example_notebook
-          notebook_task:
-            notebook_path: "./notebooks/example_notebook.ipynb"
-        - task_key: example_databricks_notebook
-          depends_on:
-            - task_key: example_notebook
-          notebook_task:
-            notebook_path: "./notebooks/example_databricks_notebook.py"
-
-# Example resources you can uncomment and customize:
-# resources:
-#   apps:
-#     your_app:
-#       name: "your-app-name"
-#       description: "Your app description"
-#       source_code_path: "./apps/your_app"
-#
-#   jobs:
-#     your_workflow:
-#       name: "Your Workflow Name"
-#       tasks:
-#         - task_key: first_task
-#           notebook_task:
-#             notebook_path: "./notebooks/your_first_notebook.ipynb"
-#         - task_key: second_task
-#           depends_on:
-#             - task_key: first_task
-#           notebook_task:
-#             notebook_path: "./notebooks/your_second_notebook.ipynb"
-#
-#   pipelines:
-#     your_pipeline:
-#       name: "Your Pipeline"
-#       storage: "/Shared/your-pipeline"
-#       configuration:
-#         your_config: "value"
-#
-#   models:
-#     your_model:
-#       name: "Your Model"
-#       model_path: "models/your_model"
-#
-#   dashboards:
-#     your_dashboard:
-#       display_name: "Your Dashboard"
-#       file_path: "./dashboards/your_dashboard.lvdash.json"
-
-# For more options and schema, see: https://docs.databricks.com/aws/en/dev-tools/bundles/settings
+    default: true

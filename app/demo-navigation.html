@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Demo Navigation</title>
+    <link rel="icon" href="https://www.databricks.com/en-website-assets/favicon-32x32.png?v=c9b9916c3b27dc51866c46b79a6e9b88" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="theme-config.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'databricks-navy': '#0B2026',
+                        'databricks-lava': '#FF3621',
+                        'databricks-oat-medium': '#EEEDE9',
+                        'databricks-oat-light': '#F9F7F4',
+                        'dark-bg': '#0B2026',
+                        'dark-panel': '#0B2026',
+                        'dark-border': 'rgba(238, 237, 233, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0B2026 0%, #0d2832 100%);
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .scene-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .scene-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(255, 54, 33, 0.15);
+        }
+
+        .scene-card:hover .scene-number {
+            transform: scale(1.1) rotate(-5deg);
+        }
+
+        .scene-number {
+            transition: all 0.3s ease;
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #FF3621 0%, #FF5C4D 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        code, .font-mono {
+            font-family: 'DM Mono', monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-100 flex items-center justify-center p-8">
+    <div class="max-w-7xl w-full">
+        <!-- Header -->
+        <div class="text-center mb-12 fade-in-up">
+            <img src="DBLogo.png" alt="DB Logo" class="h-16 object-contain mx-auto mb-6">
+            <h1 class="text-5xl font-bold text-white mb-4">
+                Databricks Lakehouse for <span class="gradient-text">On-going KYC</span>
+            </h1>
+            <p class="text-xl text-gray-400 max-w-3xl mx-auto">
+                Executive Demo: Transforming Financial Crime Prevention with AI, Data & Governance
+            </p>
+        </div>
+
+        <!-- Scene Navigation Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Scene 1 -->
+            <a href="scene1-onboarding.html" class="scene-card bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava fade-in-up" style="animation-delay: 0.1s;">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="scene-number w-12 h-12 bg-databricks-lava rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        1
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Seamless KYC Onboarding</h3>
+                <p class="text-sm text-gray-400 mb-4">AI-powered customer onboarding with Agent Bricks. Real-time verification and instant risk assessment.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Agent Bricks</span>
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">First Line Defence</span>
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">Mosaic AI</span>
+                </div>
+            </a>
+
+            <!-- Scene 2 -->
+            <a href="scene2-txn-screening.html" class="scene-card bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava fade-in-up" style="animation-delay: 0.2s;">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="scene-number w-12 h-12 bg-databricks-lava rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        2
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Real-Time Transaction Screening</h3>
+                <p class="text-sm text-gray-400 mb-4">Streaming analytics dashboard showing SWIFT messages screened in real-time with ML based alerting.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Streaming</span>
+                    <span class="text-xs bg-green-900 text-green-300 px-2 py-1 rounded">Delta Lake</span>
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">Second Line Defence</span>
+                </div>
+            </a>
+
+            <!-- Scene 3 -->
+            <a href="scene3-ai-monitoring.html" class="scene-card bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava fade-in-up" style="animation-delay: 0.3s;">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="scene-number w-12 h-12 bg-databricks-lava rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        3
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">AI Transaction Monitoring</h3>
+                <p class="text-sm text-gray-400 mb-4">Red Flag raise on suspicious patterns of behaviour detected by ML models governed in Mosaic AI.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">Mosaic AI</span>
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Unity Catalog</span>
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">Third Line Defence</span>
+                </div>
+            </a>
+
+            <!-- Scene 4 -->
+            <a href="scene4-edd-investigation.html" class="scene-card bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava fade-in-up" style="animation-delay: 0.4s;">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="scene-number w-12 h-12 bg-databricks-lava rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        4
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Agentic Assisted Investigation</h3>
+                <p class="text-sm text-gray-400 mb-4">AI Investigator uncovers Panama Papers links and sanctioned shadow fleet in 4 minutes vs. days.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Agent Bricks</span>
+                    <span class="text-xs bg-red-900 text-red-300 px-2 py-1 rounded">Unstructured Data</span>
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">Third Line Defence</span>
+                </div>
+            </a>
+
+            <!-- Scene 5 -->
+            <a href="scene5-sar-filing.html" class="scene-card bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava fade-in-up" style="animation-delay: 0.5s;">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="scene-number w-12 h-12 bg-databricks-lava rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        5
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">SAR Filing & Case Closure</h3>
+                <p class="text-sm text-gray-400 mb-4">MLRO reviews AI-generated SAR with complete audit trail. One-click submission to authorities.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">Agent Bricks</span>
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Delta Share</span>
+                    <span class="text-xs bg-orange-900 text-orange-300 px-2 py-1 rounded">MLRO</span>
+                </div>
+            </a>
+
+            <!-- Scene 6 -->
+            <a href="scene6-cco-dashboard.html" class="scene-card bg-dark-panel border border-dark-border rounded-xl p-6 hover:border-databricks-lava fade-in-up" style="animation-delay: 0.6s;">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="scene-number w-12 h-12 bg-databricks-lava rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        6
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">CCO Executive Dashboard</h3>
+                <p class="text-sm text-gray-400 mb-4">Real-time AML/KYC metrics with AI-powered Genie assistant for compliance insights and Q&A.</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded">AI/BI Dashboard</span>
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Genie</span>
+                    <span class="text-xs bg-green-900 text-green-300 px-2 py-1 rounded">CCO</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- Key Value Propositions -->
+        <div class="bg-dark-panel border border-dark-border rounded-xl p-8 fade-in-up" style="animation-delay: 0.7s;">
+            <h2 class="text-2xl font-bold text-white mb-6 text-center">Three Pillars of Value</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-databricks-lava rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Enhanced KYC without Friction</h3>
+                    <p class="text-sm text-gray-400">KYC in seconds, not days. Frictionless customer experience increases NPS and KYC.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Unified Financial Crime Prevention</h3>
+                    <p class="text-sm text-gray-400">A single platform for financial crime prevention across all lines of defence leveraging AI, ML and data.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-databricks-lava rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Unified Data & Governance</h3>
+                    <p class="text-sm text-gray-400">Complete audit trail of all data processing and accessing. PII protection. Centralised governance with the ability to federate administration to local jurisdictions.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-500 text-sm fade-in-up" style="animation-delay: 0.8s;">
+            <p>Built with Databricks Lakehouse Platform • Demo Version 1.0</p>
+        </div>
+    </div>
+</body>
+</html>
+

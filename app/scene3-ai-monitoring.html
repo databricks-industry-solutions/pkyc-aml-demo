@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML-Powered Transaction Monitoring</title>
+    <link rel="icon" href="https://www.databricks.com/en-website-assets/favicon-32x32.png?v=c9b9916c3b27dc51866c46b79a6e9b88" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="theme-config.js"></script>
+    <script src="demo-controls.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'databricks-navy': '#0B2026',
+                        'databricks-lava': '#FF3621',
+                        'databricks-oat-medium': '#EEEDE9',
+                        'databricks-oat-light': '#F9F7F4',
+                        'dark-bg': '#0B2026',
+                        'dark-panel': '#0B2026',
+                        'dark-border': 'rgba(238, 237, 233, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B2026;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        code, .font-mono {
+            font-family: 'DM Mono', monospace;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #334155;
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 3px;
+        }
+
+        .alert-pulse {
+            animation: alertPulse 2s infinite;
+        }
+
+        @keyframes alertPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(255, 54, 33, 0.4);
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(255, 54, 33, 0);
+            }
+        }
+
+        .bar-grow {
+            animation: barGrow 1s ease-out forwards;
+            transform-origin: bottom center;
+        }
+
+        @keyframes barGrow {
+            from {
+                transform: scaleY(0);
+            }
+            to {
+                transform: scaleY(1);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .clickable {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .clickable:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .masked-text {
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+
+        .queue-item {
+            transition: all 0.2s;
+        }
+
+        .queue-item:hover {
+            background-color: #334155;
+        }
+
+        /* Permanent Navigation Bar */
+        .demo-nav-bar {
+            opacity: 1;
+            height: 80px;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 h-screen overflow-hidden">
+    <!-- Main Container -->
+    <div class="flex" style="height: calc(100vh - 80px);">
+        <!-- Alert Queue Panel (Left) -->
+        <div class="w-80 bg-dark-panel border-r border-dark-border flex flex-col">
+            <!-- Header -->
+            <div class="p-6 border-b border-dark-border">
+                <div class="flex justify-center mb-4">
+                    <img src="DBLogo.png" alt="DB Logo" class="h-10 object-contain">
+                </div>
+                <h1 class="text-xl font-bold text-white mb-1">Tier 1 Review</h1>
+                <h2 class="text-2xl font-bold text-white mb-2">AML Alert Queue</h2>
+                <p class="text-gray-400 text-sm">Analyst: John Martinez</p>
+                <div class="demo-timestamp text-xs text-gray-500 font-mono text-center mt-2"></div>
+            </div>
+
+            <!-- Queue Statistics -->
+            <div class="p-4 border-b border-dark-border space-y-3">
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <div class="text-xs text-gray-400">Total Alerts Today</div>
+                    <div class="text-2xl font-bold text-white">47</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <div class="text-xs text-gray-400">Pending Review</div>
+                    <div class="text-2xl font-bold text-yellow-400">12</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <div class="text-xs text-gray-400">Avg. Review Time</div>
+                    <div class="text-lg font-bold text-databricks-lava">8.3 min</div>
+                </div>
+            </div>
+
+            <!-- Alert List -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-2">
+                <!-- Alert #271 - ACTIVE (Dirk - Anonymized) -->
+                <div class="bg-red-900 bg-opacity-40 border-2 border-databricks-lava rounded-lg p-3 cursor-pointer alert-pulse queue-item">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-databricks-lava font-bold">Alert #271</span>
+                            <span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded-full">ACTIVE</span>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-white font-semibold masked-text">CUST-****-7821</div>
+                        <div class="text-xs text-gray-300">Type: <span class="text-red-300 font-medium">Structuring</span></div>
+                        <div class="text-xs text-gray-300">Risk Score: <span class="text-red-300 font-bold text-lg">0.92</span></div>
+                        <div class="text-xs text-gray-400 mt-1">Flagged: 09:47 CET</div>
+                    </div>
+                </div>
+
+                <!-- Other Alerts in Queue -->
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #270</span>
+                        <span class="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full">PENDING</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-4509</div>
+                    <div class="text-xs text-gray-400">Type: High Velocity</div>
+                    <div class="text-xs text-gray-500">Score: 0.78</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #269</span>
+                        <span class="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full">PENDING</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-8234</div>
+                    <div class="text-xs text-gray-400">Type: Unusual Activity</div>
+                    <div class="text-xs text-gray-500">Score: 0.71</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-40 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #268</span>
+                        <span class="bg-gray-600 text-white text-xs px-2 py-0.5 rounded-full">REVIEWED</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-9102</div>
+                    <div class="text-xs text-gray-400">Type: Cross-Border</div>
+                    <div class="text-xs text-gray-500">Score: 0.68</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #267</span>
+                        <span class="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full">PENDING</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-3456</div>
+                    <div class="text-xs text-gray-400">Type: Round Amount</div>
+                    <div class="text-xs text-gray-500">Score: 0.82</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #266</span>
+                        <span class="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full">PENDING</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-7711</div>
+                    <div class="text-xs text-gray-400">Type: Sanctions Risk</div>
+                    <div class="text-xs text-gray-500">Score: 0.88</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-40 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #265</span>
+                        <span class="bg-gray-600 text-white text-xs px-2 py-0.5 rounded-full">CLOSED</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-2298</div>
+                    <div class="text-xs text-gray-400">Type: Velocity Check</div>
+                    <div class="text-xs text-gray-500">Score: 0.65</div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-3 border border-gray-700 opacity-60 queue-item">
+                    <div class="flex items-start justify-between mb-1">
+                        <span class="text-gray-400 font-bold text-sm">Alert #264</span>
+                        <span class="bg-yellow-600 text-white text-xs px-2 py-0.5 rounded-full">PENDING</span>
+                    </div>
+                    <div class="text-sm text-gray-300 masked-text">CUST-****-5543</div>
+                    <div class="text-xs text-gray-400">Type: PEP Association</div>
+                    <div class="text-xs text-gray-500">Score: 0.75</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Timeline Panel (Center) -->
+        <div class="flex-1 bg-dark-bg flex flex-col">
+            <!-- Header -->
+            <div class="p-6 border-b border-dark-border">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white mb-2">Transaction Pattern Analysis</h2>
+                        <p class="text-gray-400 text-sm">Customer: <span class="masked-text">CUST-****-7821</span> • Alert #271</p>
+                        <p class="text-xs text-gray-500 mt-1">Original Onboarding Risk: <span class="text-green-400">LOW</span></p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-400 mb-1">Time Period</div>
+                        <select class="bg-gray-800 border border-gray-600 text-white text-sm rounded px-3 py-2" id="timePeriod">
+                            <option value="7" selected>Last 7 Days</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="90">Last 90 Days</option>
+                            <option value="180">Last 6 Months</option>
+                            <option value="365">Last Year</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Area -->
+            <div class="flex-1 p-6 overflow-y-auto">
+                <div class="bg-gray-900 rounded-lg border border-gray-700 p-6 mb-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-white">Recent Deposits & Transfers</h3>
+                        <button class="text-databricks-lava hover:text-blue-300 text-sm flex items-center space-x-1 clickable" onclick="openPatternModal()">
+                            <span>View Pattern Details</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Chart -->
+                    <div class="relative h-96">
+                        <!-- Y-axis labels -->
+                        <div class="absolute left-0 top-0 bottom-12 w-16 flex flex-col justify-between text-xs text-gray-400 text-right pr-2">
+                            <span>€12,000</span>
+                            <span>€10,000</span>
+                            <span>€8,000</span>
+                            <span>€6,000</span>
+                            <span>€4,000</span>
+                            <span>€2,000</span>
+                            <span>€0</span>
+                        </div>
+
+                        <!-- Chart area -->
+                        <div class="absolute left-16 right-0 top-0 bottom-12">
+                            <!-- Threshold Line -->
+                            <div class="absolute left-0 right-0" style="top: 16.67%;">
+                                <div class="border-t-2 border-dashed border-yellow-500"></div>
+                                <div class="text-xs text-yellow-400 mt-1">EU Reporting Threshold: €10,000</div>
+                            </div>
+
+                            <!-- Line Chart Container -->
+                            <div id="chartBarsContainer" class="absolute inset-0 px-4" style="padding-bottom: 50px;">
+                                <!-- SVG Line Chart -->
+                                <svg width="100%" height="300" viewBox="0 0 800 300" preserveAspectRatio="none" style="position: absolute; top: 0; left: 0; right: 0;">
+                                    <defs>
+                                        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" style="stop-color:rgb(255, 54, 33);stop-opacity:0.3" />
+                                            <stop offset="100%" style="stop-color:rgb(255, 54, 33);stop-opacity:0.05" />
+                                        </linearGradient>
+                                    </defs>
+                                    <!-- Area under line -->
+                                    <path d="M 0 300 L 0 62.5 L 160 87.5 L 320 50 L 480 77.5 L 640 60 L 800 72.5 L 800 300 Z" fill="url(#lineGradient)" />
+                                    <!-- Line -->
+                                    <path d="M 0 62.5 L 160 87.5 L 320 50 L 480 77.5 L 640 60 L 800 72.5" fill="none" stroke="#FF3621" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                                    <!-- Data points -->
+                                    <circle cx="0" cy="62.5" r="4" fill="#FF3621" stroke="#0B2026" stroke-width="2" />
+                                    <circle cx="160" cy="87.5" r="4" fill="#FF3621" stroke="#0B2026" stroke-width="2" />
+                                    <circle cx="320" cy="50" r="4" fill="#FF3621" stroke="#0B2026" stroke-width="2" />
+                                    <circle cx="480" cy="77.5" r="4" fill="#FF3621" stroke="#0B2026" stroke-width="2" />
+                                    <circle cx="640" cy="60" r="4" fill="#FF3621" stroke="#0B2026" stroke-width="2" />
+                                    <circle cx="800" cy="72.5" r="4" fill="#FF3621" stroke="#0B2026" stroke-width="2" />
+                                </svg>
+                                <!-- Labels -->
+                                <div class="absolute bottom-0 left-0 right-0 flex justify-between px-4" style="height: 45px;">
+                                    <div class="flex flex-col items-center" style="flex: 1;">
+                                    <div class="text-xs text-gray-500 mt-1">Oct 24</div>
+                                </div>
+                                    <div class="flex flex-col items-center" style="flex: 1;">
+                                    <div class="text-xs text-gray-500 mt-1">Oct 25</div>
+                                </div>
+                                    <div class="flex flex-col items-center" style="flex: 1;">
+                                    <div class="text-xs text-gray-500 mt-1">Oct 26</div>
+                                </div>
+                                    <div class="flex flex-col items-center" style="flex: 1;">
+                                    <div class="text-xs text-gray-500 mt-1">Oct 27</div>
+                                </div>
+                                    <div class="flex flex-col items-center" style="flex: 1;">
+                                    <div class="text-xs text-gray-500 mt-1">Oct 28</div>
+                                </div>
+                                    <div class="flex flex-col items-center" style="flex: 1;">
+                                    <div class="text-xs text-gray-500 mt-1">Oct 29</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- X-axis -->
+                        <div class="absolute left-16 right-0 bottom-0 h-12 border-t border-gray-600">
+                            <div class="text-center text-xs text-gray-400 mt-2">Transaction Date</div>
+                        </div>
+                    </div>
+
+                    <!-- Pattern Note -->
+                    <div class="mt-6 bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4 clickable" onclick="openPatternModal()">
+                        <div class="flex items-start space-x-3">
+                            <svg class="w-6 h-6 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div class="flex-1">
+                                <p class="text-red-300 font-semibold">Structuring Pattern Detected (Click for details)</p>
+                                <p class="text-sm text-gray-300 mt-1">Multiple round-number deposits consistently just under the €10,000 reporting threshold. This pattern is characteristic of <strong class="text-red-300">structuring behavior</strong> designed to evade regulatory reporting requirements.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction Details Table -->
+                <div class="bg-gray-900 rounded-lg border border-gray-700 p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">Detailed Transaction History</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-700">
+                                    <th class="text-left text-gray-400 font-medium pb-2">Date</th>
+                                    <th class="text-left text-gray-400 font-medium pb-2">Time</th>
+                                    <th class="text-left text-gray-400 font-medium pb-2">Type</th>
+                                    <th class="text-right text-gray-400 font-medium pb-2">Amount</th>
+                                    <th class="text-left text-gray-400 font-medium pb-2">Counterparty</th>
+                                    <th class="text-left text-gray-400 font-medium pb-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-300">
+                                <tr class="border-b border-gray-800">
+                                    <td class="py-2">2025-10-29</td>
+                                    <td class="py-2">09:23</td>
+                                    <td class="py-2">Wire Transfer</td>
+                                    <td class="py-2 text-right text-databricks-lava font-bold">€9,400</td>
+                                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                                    <td class="py-2"><span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded">FLAGGED</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="py-2">2025-10-28</td>
+                                    <td class="py-2">14:15</td>
+                                    <td class="py-2">Wire Transfer</td>
+                                    <td class="py-2 text-right text-databricks-lava font-bold">€9,700</td>
+                                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                                    <td class="py-2"><span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded">FLAGGED</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="py-2">2025-10-27</td>
+                                    <td class="py-2">10:42</td>
+                                    <td class="py-2">Wire Transfer</td>
+                                    <td class="py-2 text-right text-databricks-lava font-bold">€9,300</td>
+                                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                                    <td class="py-2"><span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded">FLAGGED</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="py-2">2025-10-26</td>
+                                    <td class="py-2">15:08</td>
+                                    <td class="py-2">Wire Transfer</td>
+                                    <td class="py-2 text-right text-databricks-lava font-bold">€9,800</td>
+                                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                                    <td class="py-2"><span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded">FLAGGED</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="py-2">2025-10-25</td>
+                                    <td class="py-2">11:30</td>
+                                    <td class="py-2">Wire Transfer</td>
+                                    <td class="py-2 text-right text-databricks-lava font-bold">€9,000</td>
+                                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                                    <td class="py-2"><span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded">FLAGGED</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="py-2">2025-10-24</td>
+                                    <td class="py-2">13:45</td>
+                                    <td class="py-2">Wire Transfer</td>
+                                    <td class="py-2 text-right text-databricks-lava font-bold">€9,500</td>
+                                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                                    <td class="py-2"><span class="bg-databricks-lava text-white text-xs px-2 py-0.5 rounded">FLAGGED</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Explainability Panel (Right) -->
+        <div class="w-96 bg-dark-panel border-l border-dark-border flex flex-col">
+            <!-- Header -->
+            <div class="p-6 border-b border-dark-border">
+                <h2 class="text-lg font-bold text-white mb-1">ML Model Explainability</h2>
+                <p class="text-sm text-gray-400">Feature Importance & SHAP Values</p>
+            </div>
+
+            <!-- Risk Score Summary -->
+            <div class="p-4 border-b border-dark-border">
+                <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4">
+                    <div class="text-sm text-databricks-lava mb-1">ML Model Risk Score</div>
+                    <div class="text-4xl font-bold text-red-300 mb-2">0.92</div>
+                    <div class="text-xs text-gray-300">High Probability of Structuring</div>
+                </div>
+            </div>
+
+            <!-- Feature Importance Bars -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-white">Contributing Factors (SHAP Values)</h3>
+                    <button class="text-databricks-lava hover:text-blue-300 text-xs" onclick="openModelModal()">
+                        <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Details
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Factor 1 - Highest -->
+                    <div class="fade-in" style="animation-delay: 0.1s;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-300">Round-number transfers pattern</span>
+                            <span class="text-xs font-bold text-databricks-lava">+0.80</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div class="bg-databricks-lava h-full rounded-full bar-grow" style="width: 100%; animation-delay: 0.1s;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Factor 2 -->
+                    <div class="fade-in" style="animation-delay: 0.2s;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-300">Threshold-adjacent amounts</span>
+                            <span class="text-xs font-bold text-databricks-lava">+0.60</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div class="bg-databricks-lava h-full rounded-full bar-grow" style="width: 75%; animation-delay: 0.2s;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Factor 3 -->
+                    <div class="fade-in" style="animation-delay: 0.3s;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-300">Consistent deposit timing</span>
+                            <span class="text-xs font-bold text-databricks-lava">+0.45</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div class="bg-orange-500 h-full rounded-full bar-grow" style="width: 56.25%; animation-delay: 0.3s;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Factor 4 -->
+                    <div class="fade-in" style="animation-delay: 0.4s;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-300">Same counterparty frequency</span>
+                            <span class="text-xs font-bold text-yellow-400">+0.35</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div class="bg-yellow-500 h-full rounded-full bar-grow" style="width: 43.75%; animation-delay: 0.4s;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Factor 5 -->
+                    <div class="fade-in" style="animation-delay: 0.5s;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-300">Rapid succession (days)</span>
+                            <span class="text-xs font-bold text-yellow-400">+0.25</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                            <div class="bg-yellow-500 h-full rounded-full bar-grow" style="width: 31.25%; animation-delay: 0.5s;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Mitigating Factor -->
+                    <div class="fade-in" style="animation-delay: 0.6s;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-300">Recent KYC completion</span>
+                            <span class="text-xs font-bold text-green-400">-0.10</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden relative">
+                            <div class="bg-databricks-lava h-full rounded-full bar-grow absolute right-0" style="width: 12.5%; animation-delay: 0.6s;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Info -->
+                <div class="mt-6 bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4 clickable" onclick="openModelModal()">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-semibold text-blue-300">ML Model Performance</h4>
+                        <button class="text-databricks-lava text-xs hover:text-blue-300">
+                            View Details →
+                        </button>
+                    </div>
+                    <div class="space-y-2 text-xs text-gray-300">
+                        <div class="flex justify-between">
+                            <span>Detection AUC:</span>
+                            <span class="font-bold text-white">97.3%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>False Positive Rate:</span>
+                            <span class="font-bold text-green-400">2.8%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Model Version:</span>
+                            <span class="font-mono text-databricks-lava">v2.4.1</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Last Trained:</span>
+                            <span class="text-gray-400">2025-10-15</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-6 space-y-2">
+                    <button class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded transition-colors flex items-center justify-center space-x-2" onclick="openEDDModal()">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <span>Escalate to EDD</span>
+                    </button>
+                    <button class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded transition-colors flex items-center justify-center space-x-2" onclick="openInfoRequestModal()">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Request Additional Info</span>
+                    </button>
+                    <button class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors">
+                        Mark as False Positive
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer Note -->
+            <div class="p-4 border-t border-dark-border bg-gray-900">
+                <p class="text-xs text-gray-400 italic">
+                    <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                    ML Model trained on anonymized dataset using Differential Privacy
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pattern Details Modal -->
+    <div id="patternModal" class="modal">
+        <div class="modal-content w-full max-w-4xl">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">Structuring Pattern - Detailed Analysis</h3>
+                <button onclick="closePatternModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6 overflow-y-auto" style="max-height: 70vh;">
+                <!-- Pattern Overview -->
+                <div class="bg-red-900 bg-opacity-20 border border-red-600 rounded-lg p-4">
+                    <h4 class="text-red-300 font-semibold mb-3 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        Typology: Transaction Structuring (Smurfing)
+                    </h4>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        <strong>Structuring</strong>, also known as <strong>smurfing</strong>, is the practice of breaking up large financial transactions into smaller amounts to avoid regulatory reporting requirements. In the European Union, cash transactions and wire transfers exceeding €10,000 trigger mandatory reporting to financial intelligence units (FIUs).
+                    </p>
+                </div>
+
+                <!-- Detected Indicators -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Key Indicators Detected:</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-start space-x-3 bg-gray-800 p-3 rounded">
+                            <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="text-gray-200 font-medium">Threshold Avoidance</p>
+                                <p class="text-gray-400 text-sm">All 6 transactions were between €9,000 and €9,800—just under the €10,000 reporting threshold</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3 bg-gray-800 p-3 rounded">
+                            <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="text-gray-200 font-medium">Rapid Succession Pattern</p>
+                                <p class="text-gray-400 text-sm">Six consecutive daily transactions over 6 days (Oct 24-29, 2025)</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3 bg-gray-800 p-3 rounded">
+                            <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="text-gray-200 font-medium">Round Number Amounts</p>
+                                <p class="text-gray-400 text-sm">All amounts are round numbers (€9,000, €9,300, €9,400, €9,500, €9,700, €9,800)</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3 bg-gray-800 p-3 rounded">
+                            <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="text-gray-200 font-medium">Same Beneficiary Account</p>
+                                <p class="text-gray-400 text-sm">All transfers sent to the same counterparty account: ACCT-***-4521</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3 bg-gray-800 p-3 rounded">
+                            <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="text-gray-200 font-medium">Aggregate Amount</p>
+                                <p class="text-gray-400 text-sm">Total value: €56,700 over 6 days—well above reporting threshold if combined</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction Table -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Flagged Transactions:</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border border-gray-700">
+                            <thead class="bg-gray-800">
+                                <tr>
+                                    <th class="text-left text-gray-400 font-medium p-2 border-b border-gray-700">Date</th>
+                                    <th class="text-left text-gray-400 font-medium p-2 border-b border-gray-700">Time (CET)</th>
+                                    <th class="text-right text-gray-400 font-medium p-2 border-b border-gray-700">Amount (€)</th>
+                                    <th class="text-left text-gray-400 font-medium p-2 border-b border-gray-700">To Account</th>
+                                    <th class="text-right text-gray-400 font-medium p-2 border-b border-gray-700">% Below Threshold</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-300">
+                                <tr class="border-b border-gray-800">
+                                    <td class="p-2">2025-10-24</td>
+                                    <td class="p-2">13:45</td>
+                                    <td class="p-2 text-right font-bold text-databricks-lava">9,500</td>
+                                    <td class="p-2 masked-text">ACCT-***-4521</td>
+                                    <td class="p-2 text-right text-yellow-400">5.0%</td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="p-2">2025-10-25</td>
+                                    <td class="p-2">11:30</td>
+                                    <td class="p-2 text-right font-bold text-databricks-lava">9,000</td>
+                                    <td class="p-2 masked-text">ACCT-***-4521</td>
+                                    <td class="p-2 text-right text-yellow-400">10.0%</td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="p-2">2025-10-26</td>
+                                    <td class="p-2">15:08</td>
+                                    <td class="p-2 text-right font-bold text-databricks-lava">9,800</td>
+                                    <td class="p-2 masked-text">ACCT-***-4521</td>
+                                    <td class="p-2 text-right text-yellow-400">2.0%</td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="p-2">2025-10-27</td>
+                                    <td class="p-2">10:42</td>
+                                    <td class="p-2 text-right font-bold text-databricks-lava">9,300</td>
+                                    <td class="p-2 masked-text">ACCT-***-4521</td>
+                                    <td class="p-2 text-right text-yellow-400">7.0%</td>
+                                </tr>
+                                <tr class="border-b border-gray-800">
+                                    <td class="p-2">2025-10-28</td>
+                                    <td class="p-2">14:15</td>
+                                    <td class="p-2 text-right font-bold text-databricks-lava">9,700</td>
+                                    <td class="p-2 masked-text">ACCT-***-4521</td>
+                                    <td class="p-2 text-right text-yellow-400">3.0%</td>
+                                </tr>
+                                <tr class="bg-gray-800">
+                                    <td class="p-2">2025-10-29</td>
+                                    <td class="p-2">09:23</td>
+                                    <td class="p-2 text-right font-bold text-databricks-lava">9,400</td>
+                                    <td class="p-2 masked-text">ACCT-***-4521</td>
+                                    <td class="p-2 text-right text-yellow-400">6.0%</td>
+                                </tr>
+                                <tr class="bg-red-900 bg-opacity-30 font-bold">
+                                    <td class="p-2" colspan="2">TOTAL</td>
+                                    <td class="p-2 text-right text-red-300">56,700</td>
+                                    <td class="p-2" colspan="2"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Regulatory Context -->
+                <div class="bg-blue-900 bg-opacity-20 border border-databricks-lava rounded-lg p-4">
+                    <h4 class="text-blue-300 font-semibold mb-2">Regulatory Context:</h4>
+                    <p class="text-gray-300 text-sm">
+                        Under EU Directive 2015/849 (4th Anti-Money Laundering Directive) and subsequent amendments, financial institutions must report transactions exceeding €10,000. Deliberately structuring transactions to avoid this threshold constitutes a criminal offense under Article 3 of the directive. This customer's onboarding risk was assessed as <strong class="text-green-400">LOW</strong>, making this pattern particularly suspicious.
+                    </p>
+                </div>
+
+                <!-- Recommended Actions -->
+                <div class="bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-lg p-4">
+                    <h4 class="text-yellow-300 font-semibold mb-2">ML Model Recommendation:</h4>
+                    <p class="text-gray-300 text-sm">
+                        Given the high confidence score (0.92) and clear pattern indicators, the ML model recommends immediate escalation to <strong>Enhanced Due Diligence (EDD)</strong>. Further investigation should focus on:
+                    </p>
+                    <ul class="list-disc list-inside text-gray-300 text-sm mt-2 space-y-1">
+                        <li>Source of funds verification</li>
+                        <li>Beneficiary account ownership and purpose</li>
+                        <li>Customer's business rationale for rapid, sequential transfers</li>
+                        <li>Historical transaction patterns prior to this 6-day period</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML Model Details Modal -->
+    <div id="modelModal" class="modal">
+        <div class="modal-content w-full max-w-4xl">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">ML Model Explainability & Change Control</h3>
+                <button onclick="closeModelModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6 overflow-y-auto" style="max-height: 70vh;">
+                <!-- Model Overview -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h4 class="text-gray-400 text-xs mb-1">Model Type</h4>
+                        <p class="text-white font-semibold">Gradient Boosted Trees</p>
+                        <p class="text-gray-400 text-xs mt-1">XGBoost Implementation</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h4 class="text-gray-400 text-xs mb-1">Model Version</h4>
+                        <p class="text-databricks-lava font-mono font-bold">v2.4.1</p>
+                        <p class="text-gray-400 text-xs mt-1">Deployed: 2025-10-20</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h4 class="text-gray-400 text-xs mb-1">Training Dataset</h4>
+                        <p class="text-white font-semibold">1.2M Transactions</p>
+                        <p class="text-gray-400 text-xs mt-1">2022-2025 Historical Data</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h4 class="text-gray-400 text-xs mb-1">Last Retrained</h4>
+                        <p class="text-white font-semibold">2025-10-15</p>
+                        <p class="text-gray-400 text-xs mt-1">Monthly Retraining Schedule</p>
+                    </div>
+                </div>
+
+                <!-- SHAP Values Detail -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3">SHAP Value Breakdown:</h4>
+                    <p class="text-gray-400 text-sm mb-4">
+                        <strong>SHAP (SHapley Additive exPlanations)</strong> values show how much each feature contributed to this specific prediction. Positive values push the score higher (toward suspicious), negative values lower (toward legitimate).
+                    </p>
+                    <div class="space-y-3">
+                        <div class="bg-gray-800 p-3 rounded">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-200 font-medium">Round-number transfers pattern</span>
+                                <span class="text-databricks-lava font-bold text-lg">+0.80</span>
+                            </div>
+                            <p class="text-gray-400 text-xs">
+                                Model Weight: <span class="text-white font-mono">0.42</span> • 
+                                Customer Value: <span class="text-yellow-400">100% of transactions</span> • 
+                                Population Avg: <span class="text-gray-500">12%</span>
+                            </p>
+                            <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden mt-2">
+                                <div class="bg-databricks-lava h-full rounded-full" style="width: 100%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-3 rounded">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-200 font-medium">Threshold-adjacent amounts</span>
+                                <span class="text-databricks-lava font-bold text-lg">+0.60</span>
+                            </div>
+                            <p class="text-gray-400 text-xs">
+                                Model Weight: <span class="text-white font-mono">0.38</span> • 
+                                Customer Value: <span class="text-yellow-400">Avg 5.5% below threshold</span> • 
+                                Population Avg: <span class="text-gray-500">Not applicable</span>
+                            </p>
+                            <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden mt-2">
+                                <div class="bg-databricks-lava h-full rounded-full" style="width: 75%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-3 rounded">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-200 font-medium">Consistent deposit timing</span>
+                                <span class="text-orange-400 font-bold text-lg">+0.45</span>
+                            </div>
+                            <p class="text-gray-400 text-xs">
+                                Model Weight: <span class="text-white font-mono">0.28</span> • 
+                                Customer Value: <span class="text-yellow-400">Daily for 6 days</span> • 
+                                Population Avg: <span class="text-gray-500">2.1 days between txns</span>
+                            </p>
+                            <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden mt-2">
+                                <div class="bg-orange-500 h-full rounded-full" style="width: 56.25%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-3 rounded">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-gray-200 font-medium">Recent KYC completion</span>
+                                <span class="text-green-400 font-bold text-lg">-0.10</span>
+                            </div>
+                            <p class="text-gray-400 text-xs">
+                                Model Weight: <span class="text-white font-mono">-0.05</span> • 
+                                Customer Value: <span class="text-green-400">Completed 7 days ago</span> • 
+                                Population Avg: <span class="text-gray-500">245 days</span>
+                            </p>
+                            <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden mt-2">
+                                <div class="bg-databricks-lava h-full rounded-full" style="width: 12.5%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Performance Metrics -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Model Performance Metrics:</h4>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-green-900 bg-opacity-30 border border-green-700 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-green-400">97.3%</div>
+                            <div class="text-xs text-gray-400 mt-1">Detection AUC-ROC</div>
+                        </div>
+                        <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-databricks-lava">94.1%</div>
+                            <div class="text-xs text-gray-400 mt-1">Precision</div>
+                        </div>
+                        <div class="bg-purple-900 bg-opacity-30 border border-purple-700 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-purple-400">91.8%</div>
+                            <div class="text-xs text-gray-400 mt-1">Recall</div>
+                        </div>
+                        <div class="bg-green-900 bg-opacity-30 border border-green-700 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-green-400">2.8%</div>
+                            <div class="text-xs text-gray-400 mt-1">False Positive Rate</div>
+                        </div>
+                        <div class="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-yellow-400">1.2%</div>
+                            <div class="text-xs text-gray-400 mt-1">False Negative Rate</div>
+                        </div>
+                        <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-databricks-lava">92.9%</div>
+                            <div class="text-xs text-gray-400 mt-1">F1 Score</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Control History -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Model Change Control History:</h4>
+                    <div class="space-y-2">
+                        <div class="bg-blue-900 bg-opacity-20 border-l-4 border-blue-500 p-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-blue-300 font-semibold">v2.4.1 - Current</span>
+                                <span class="text-gray-400 text-xs">2025-10-20</span>
+                            </div>
+                            <p class="text-gray-300 text-sm">Deployed to production. Improved threshold-detection features. Validated by Compliance Team.</p>
+                            <div class="text-xs text-gray-500 mt-1">Approved by: Sarah Chen (Head of Model Risk) • Change ID: CHG-2025-1020</div>
+                        </div>
+                        <div class="bg-gray-800 border-l-4 border-gray-600 p-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-gray-300 font-semibold">v2.4.0</span>
+                                <span class="text-gray-400 text-xs">2025-09-15</span>
+                            </div>
+                            <p class="text-gray-300 text-sm">Added SHAP explainability layer. Enhanced feature engineering for timing patterns.</p>
+                            <div class="text-xs text-gray-500 mt-1">Approved by: Mark Rodriguez (CTO) • Change ID: CHG-2025-0915</div>
+                        </div>
+                        <div class="bg-gray-800 border-l-4 border-gray-600 p-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-gray-300 font-semibold">v2.3.5</span>
+                                <span class="text-gray-400 text-xs">2025-08-10</span>
+                            </div>
+                            <p class="text-gray-300 text-sm">Retrained on expanded dataset (+300K transactions). Improved false positive rate by 0.8%.</p>
+                            <div class="text-xs text-gray-500 mt-1">Approved by: Sarah Chen (Head of Model Risk) • Change ID: CHG-2025-0810</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Governance -->
+                <div class="bg-purple-900 bg-opacity-20 border border-purple-600 rounded-lg p-4">
+                    <h4 class="text-purple-300 font-semibold mb-2 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        Model Governance & Compliance
+                    </h4>
+                    <ul class="text-gray-300 text-sm space-y-1">
+                        <li>✓ Model validated against test dataset (20% holdout, 240K transactions)</li>
+                        <li>✓ Bias testing completed: No significant disparity across customer segments</li>
+                        <li>✓ Differential Privacy applied: ε = 0.5, δ = 1e-5</li>
+                        <li>✓ Compliance review completed by Legal & Regulatory Affairs</li>
+                        <li>✓ Model documentation stored in Unity Catalog with full lineage</li>
+                        <li>✓ Next review scheduled: 2025-11-15</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDD Escalation Modal -->
+    <div id="eddModal" class="modal">
+        <div class="modal-content w-full max-w-2xl">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">Escalate to Enhanced Due Diligence (EDD)</h3>
+                <button onclick="closeEDDModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                    <h4 class="text-yellow-300 font-semibold mb-2 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        EDD Escalation Confirmation
+                    </h4>
+                    <p class="text-gray-300 text-sm">
+                        You are about to escalate Alert #271 for customer <span class="masked-text">CUST-****-7821</span> to Enhanced Due Diligence. This will trigger:
+                    </p>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-gray-200 font-medium">Tier 2 Investigation Assignment</p>
+                            <p class="text-gray-400 text-sm">Case will be assigned to senior compliance analyst for deep investigation</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-gray-200 font-medium">Source of Wealth Investigation</p>
+                            <p class="text-gray-400 text-sm">Full review of customer's income sources and business activities</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-gray-200 font-medium">Beneficiary Account Analysis</p>
+                            <p class="text-gray-400 text-sm">Investigation of receiving account ownership and purpose</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-gray-200 font-medium">Transaction Freeze (Pending Review)</p>
+                            <p class="text-gray-400 text-sm">Further similar transactions will be held for manual review</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-databricks-lava flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-gray-200 font-medium">Regulatory Notification (If Required)</p>
+                            <p class="text-gray-400 text-sm">FIU notification prepared pending investigation outcome</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <label class="text-gray-300 text-sm font-medium block mb-2">Escalation Notes:</label>
+                    <textarea class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm" rows="4" placeholder="Enter reason for escalation and any additional context for Tier 2 analyst...">Structuring pattern detected with high ML confidence (0.92). Six consecutive transactions below €10K threshold to same beneficiary over 6 days. Total value €56,700. Customer onboarded as LOW risk 7 days ago. Recommend full source of funds investigation and beneficiary verification.</textarea>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="confirmEDD()">
+                        Confirm EDD Escalation
+                    </button>
+                    <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="closeEDDModal()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Request Modal -->
+    <div id="infoRequestModal" class="modal">
+        <div class="modal-content w-full max-w-2xl">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white">Request Additional Information</h3>
+                <button onclick="closeInfoRequestModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="bg-blue-900 bg-opacity-30 border border-databricks-lava rounded-lg p-4">
+                    <p class="text-gray-300 text-sm">
+                        This structured information request will be sent to the <strong class="text-blue-300">Relationship Manager</strong> for customer <span class="masked-text">CUST-****-7821</span>. The RM will contact the customer directly to gather the requested information.
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-gray-300 text-sm font-medium block mb-2">Relationship Manager:</label>
+                        <select class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm">
+                            <option>Maria Jansen (Primary RM - SME Banking)</option>
+                            <option>Thomas de Vries (Backup RM)</option>
+                            <option>Lisa van der Berg (Senior RM)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-300 text-sm font-medium block mb-2">Information Request Type:</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" checked>
+                                <span class="text-gray-200 text-sm">Source of Funds Documentation</span>
+                            </label>
+                            <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" checked>
+                                <span class="text-gray-200 text-sm">Purpose of Transaction(s)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" checked>
+                                <span class="text-gray-200 text-sm">Beneficiary Relationship Documentation</span>
+                            </label>
+                            <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600">
+                                <span class="text-gray-200 text-sm">Updated Business Financial Statements</span>
+                            </label>
+                            <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600">
+                                <span class="text-gray-200 text-sm">Proof of Business Operations</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-300 text-sm font-medium block mb-2">Priority Level:</label>
+                        <select class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm">
+                            <option>High - Response required within 3 business days</option>
+                            <option>Medium - Response required within 7 business days</option>
+                            <option>Standard - Response required within 14 business days</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-300 text-sm font-medium block mb-2">Additional Details:</label>
+                        <textarea class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm" rows="4" placeholder="Provide specific questions or context for the Relationship Manager...">Please request the following from the customer:
+
+1. Documentation showing the source of the €56,700 transferred over Oct 24-29, 2025
+2. Explanation for why transfers were structured as 6 separate amounts below €10K
+3. Details on beneficiary account ACCT-***-4521 including relationship and purpose
+4. Any contracts, invoices, or business documentation supporting these transfers
+
+Alert #271 - High ML confidence score (0.92) for structuring typology.</textarea>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button class="flex-1 bg-databricks-lava hover:hover:bg-opacity-90 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="confirmInfoRequest()">
+                        Send Information Request
+                    </button>
+                    <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="closeInfoRequestModal()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="demo-nav-bar fixed bottom-0 left-0 right-0 bg-dark-panel border-t border-dark-border backdrop-blur-sm bg-opacity-90 z-50">
+        <div class="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+            <a href="demo-navigation.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-sm font-medium">Overview</span>
+            </a>
+            
+            <div class="flex items-center space-x-1 text-sm text-gray-400">
+                <span>Scene 3</span>
+                <span class="text-gray-600">of</span>
+                <span>5</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="scene2-txn-screening.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    <span class="text-sm font-medium">Previous</span>
+                </a>
+                <a href="scene4-edd-investigation.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-databricks-lava hover:hover:bg-opacity-90 text-white transition-colors">
+                    <span class="text-sm font-medium">Next</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Transaction data for different time periods
+        const transactionData = {
+            7: [
+                { date: '2025-10-24', time: '13:45', amount: 9500, dateLabel: 'Oct 24' },
+                { date: '2025-10-25', time: '11:30', amount: 9000, dateLabel: 'Oct 25' },
+                { date: '2025-10-26', time: '15:08', amount: 9800, dateLabel: 'Oct 26' },
+                { date: '2025-10-27', time: '10:42', amount: 9300, dateLabel: 'Oct 27' },
+                { date: '2025-10-28', time: '14:15', amount: 9700, dateLabel: 'Oct 28' },
+                { date: '2025-10-29', time: '09:23', amount: 9400, dateLabel: 'Oct 29' }
+            ],
+            30: [
+                { date: '2025-10-02', time: '14:20', amount: 8900, dateLabel: 'Oct 2' },
+                { date: '2025-10-05', time: '10:15', amount: 9200, dateLabel: 'Oct 5' },
+                { date: '2025-10-09', time: '16:30', amount: 8500, dateLabel: 'Oct 9' },
+                { date: '2025-10-14', time: '11:45', amount: 9600, dateLabel: 'Oct 14' },
+                { date: '2025-10-18', time: '13:20', amount: 9100, dateLabel: 'Oct 18' },
+                { date: '2025-10-22', time: '09:50', amount: 9400, dateLabel: 'Oct 22' },
+                { date: '2025-10-24', time: '13:45', amount: 9500, dateLabel: 'Oct 24' },
+                { date: '2025-10-25', time: '11:30', amount: 9000, dateLabel: 'Oct 25' },
+                { date: '2025-10-26', time: '15:08', amount: 9800, dateLabel: 'Oct 26' },
+                { date: '2025-10-27', time: '10:42', amount: 9300, dateLabel: 'Oct 27' },
+                { date: '2025-10-28', time: '14:15', amount: 9700, dateLabel: 'Oct 28' },
+                { date: '2025-10-29', time: '09:23', amount: 9400, dateLabel: 'Oct 29' }
+            ],
+            90: [
+                { date: '2025-08-05', time: '10:30', amount: 7200, dateLabel: 'Aug 5' },
+                { date: '2025-08-20', time: '14:15', amount: 6800, dateLabel: 'Aug 20' },
+                { date: '2025-09-03', time: '11:20', amount: 8100, dateLabel: 'Sep 3' },
+                { date: '2025-09-15', time: '15:45', amount: 7900, dateLabel: 'Sep 15' },
+                { date: '2025-09-28', time: '09:30', amount: 8500, dateLabel: 'Sep 28' },
+                { date: '2025-10-02', time: '14:20', amount: 8900, dateLabel: 'Oct 2' },
+                { date: '2025-10-05', time: '10:15', amount: 9200, dateLabel: 'Oct 5' },
+                { date: '2025-10-09', time: '16:30', amount: 8500, dateLabel: 'Oct 9' },
+                { date: '2025-10-14', time: '11:45', amount: 9600, dateLabel: 'Oct 14' },
+                { date: '2025-10-18', time: '13:20', amount: 9100, dateLabel: 'Oct 18' },
+                { date: '2025-10-22', time: '09:50', amount: 9400, dateLabel: 'Oct 22' },
+                { date: '2025-10-24', time: '13:45', amount: 9500, dateLabel: 'Oct 24' },
+                { date: '2025-10-25', time: '11:30', amount: 9000, dateLabel: 'Oct 25' },
+                { date: '2025-10-26', time: '15:08', amount: 9800, dateLabel: 'Oct 26' },
+                { date: '2025-10-27', time: '10:42', amount: 9300, dateLabel: 'Oct 27' },
+                { date: '2025-10-28', time: '14:15', amount: 9700, dateLabel: 'Oct 28' },
+                { date: '2025-10-29', time: '09:23', amount: 9400, dateLabel: 'Oct 29' }
+            ],
+            180: [
+                { date: '2025-05-12', time: '10:30', amount: 5200, dateLabel: 'May 12' },
+                { date: '2025-06-08', time: '14:15', amount: 4800, dateLabel: 'Jun 8' },
+                { date: '2025-07-03', time: '11:20', amount: 6100, dateLabel: 'Jul 3' },
+                { date: '2025-07-25', time: '15:45', amount: 5900, dateLabel: 'Jul 25' },
+                { date: '2025-08-15', time: '09:30', amount: 7500, dateLabel: 'Aug 15' },
+                { date: '2025-09-10', time: '14:20', amount: 8200, dateLabel: 'Sep 10' },
+                { date: '2025-09-28', time: '10:15', amount: 8500, dateLabel: 'Sep 28' },
+                { date: '2025-10-05', time: '16:30', amount: 9200, dateLabel: 'Oct 5' },
+                { date: '2025-10-14', time: '11:45', amount: 9600, dateLabel: 'Oct 14' },
+                { date: '2025-10-18', time: '13:20', amount: 9100, dateLabel: 'Oct 18' },
+                { date: '2025-10-22', time: '09:50', amount: 9400, dateLabel: 'Oct 22' },
+                { date: '2025-10-24', time: '13:45', amount: 9500, dateLabel: 'Oct 24' },
+                { date: '2025-10-25', time: '11:30', amount: 9000, dateLabel: 'Oct 25' },
+                { date: '2025-10-26', time: '15:08', amount: 9800, dateLabel: 'Oct 26' },
+                { date: '2025-10-27', time: '10:42', amount: 9300, dateLabel: 'Oct 27' },
+                { date: '2025-10-28', time: '14:15', amount: 9700, dateLabel: 'Oct 28' },
+                { date: '2025-10-29', time: '09:23', amount: 9400, dateLabel: 'Oct 29' }
+            ],
+            365: [
+                { date: '2024-11-15', time: '10:30', amount: 2500, dateLabel: 'Nov 15' },
+                { date: '2024-12-20', time: '14:15', amount: 3200, dateLabel: 'Dec 20' },
+                { date: '2025-01-25', time: '11:20', amount: 3800, dateLabel: 'Jan 25' },
+                { date: '2025-02-18', time: '15:45', amount: 4100, dateLabel: 'Feb 18' },
+                { date: '2025-03-22', time: '09:30', amount: 4500, dateLabel: 'Mar 22' },
+                { date: '2025-04-16', time: '14:20', amount: 5200, dateLabel: 'Apr 16' },
+                { date: '2025-05-20', time: '10:15', amount: 5800, dateLabel: 'May 20' },
+                { date: '2025-06-14', time: '16:30', amount: 6300, dateLabel: 'Jun 14' },
+                { date: '2025-07-10', time: '11:45', amount: 7100, dateLabel: 'Jul 10' },
+                { date: '2025-08-05', time: '13:20', amount: 7600, dateLabel: 'Aug 5' },
+                { date: '2025-09-01', time: '09:50', amount: 8200, dateLabel: 'Sep 1' },
+                { date: '2025-09-28', time: '14:30', amount: 8700, dateLabel: 'Sep 28' },
+                { date: '2025-10-10', time: '10:20', amount: 9100, dateLabel: 'Oct 10' },
+                { date: '2025-10-18', time: '15:15', amount: 9300, dateLabel: 'Oct 18' },
+                { date: '2025-10-24', time: '13:45', amount: 9500, dateLabel: 'Oct 24' },
+                { date: '2025-10-25', time: '11:30', amount: 9000, dateLabel: 'Oct 25' },
+                { date: '2025-10-26', time: '15:08', amount: 9800, dateLabel: 'Oct 26' },
+                { date: '2025-10-27', time: '10:42', amount: 9300, dateLabel: 'Oct 27' },
+                { date: '2025-10-28', time: '14:15', amount: 9700, dateLabel: 'Oct 28' },
+                { date: '2025-10-29', time: '09:23', amount: 9400, dateLabel: 'Oct 29' }
+            ]
+        };
+
+        // Update chart with new data - LINE GRAPH
+        function updateChart(period) {
+            const data = transactionData[period];
+            const chartContainer = document.getElementById('chartBarsContainer');
+            
+            // Clear existing content
+            chartContainer.innerHTML = '';
+            chartContainer.className = 'absolute inset-0 px-4';
+            chartContainer.style.paddingBottom = '50px';
+            
+            // Calculate max for scaling (always use 12000 for consistency)
+            const maxAmount = 12000;
+            const threshold = 10000;
+            const chartHeight = 300; // pixels
+            
+            // Create SVG for line graph
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', chartHeight);
+            svg.setAttribute('viewBox', '0 0 800 ' + chartHeight);
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.style.position = 'absolute';
+            svg.style.top = '0';
+            svg.style.left = '0';
+            svg.style.right = '0';
+            
+            // Calculate points for the line
+            const numPoints = data.length;
+            const xStep = 800 / (numPoints - 1);
+            let pathData = '';
+            let areaData = '';
+            
+            data.forEach((txn, index) => {
+                const x = index * xStep;
+                const y = chartHeight - (txn.amount / maxAmount) * chartHeight;
+                
+                if (index === 0) {
+                    pathData = `M ${x} ${y}`;
+                    areaData = `M ${x} ${chartHeight} L ${x} ${y}`;
+                } else {
+                    pathData += ` L ${x} ${y}`;
+                    areaData += ` L ${x} ${y}`;
+                }
+                
+                if (index === numPoints - 1) {
+                    areaData += ` L ${x} ${chartHeight} Z`;
+                }
+            });
+            
+            // Draw gradient area under the line (RAG transition from green to yellow to red)
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const gradientLine = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            gradientLine.setAttribute('id', 'lineGradient');
+            gradientLine.setAttribute('x1', '0%');
+            gradientLine.setAttribute('y1', '0%');
+            gradientLine.setAttribute('x2', '100%');
+            gradientLine.setAttribute('y2', '0%');
+            
+            const stopGreen = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stopGreen.setAttribute('offset', '0%');
+            stopGreen.setAttribute('style', 'stop-color:rgb(16, 185, 129);stop-opacity:1');
+            
+            const stopYellow = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stopYellow.setAttribute('offset', '50%');
+            stopYellow.setAttribute('style', 'stop-color:rgb(245, 158, 11);stop-opacity:1');
+            
+            const stopRed = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stopRed.setAttribute('offset', '100%');
+            stopRed.setAttribute('style', 'stop-color:rgb(255, 54, 33);stop-opacity:1');
+            
+            gradientLine.appendChild(stopGreen);
+            gradientLine.appendChild(stopYellow);
+            gradientLine.appendChild(stopRed);
+            defs.appendChild(gradientLine);
+            
+            // Area gradient (vertical)
+            const gradientArea = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            gradientArea.setAttribute('id', 'areaGradient');
+            gradientArea.setAttribute('x1', '0%');
+            gradientArea.setAttribute('y1', '0%');
+            gradientArea.setAttribute('x2', '0%');
+            gradientArea.setAttribute('y2', '100%');
+            
+            const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stop1.setAttribute('offset', '0%');
+            stop1.setAttribute('style', 'stop-color:rgb(255, 54, 33);stop-opacity:0.3');
+            
+            const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+            stop2.setAttribute('offset', '100%');
+            stop2.setAttribute('style', 'stop-color:rgb(255, 54, 33);stop-opacity:0.05');
+            
+            gradientArea.appendChild(stop1);
+            gradientArea.appendChild(stop2);
+            defs.appendChild(gradientArea);
+            svg.appendChild(defs);
+            
+            // Draw area
+            const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            area.setAttribute('d', areaData);
+            area.setAttribute('fill', 'url(#areaGradient)');
+            svg.appendChild(area);
+            
+            // Draw line with RAG gradient
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            line.setAttribute('d', pathData);
+            line.setAttribute('fill', 'none');
+            line.setAttribute('stroke', 'url(#lineGradient)');
+            line.setAttribute('stroke-width', '3');
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('stroke-linejoin', 'round');
+            svg.appendChild(line);
+            
+            // Draw data points with RAG colors based on progression
+            data.forEach((txn, index) => {
+                const x = index * xStep;
+                const y = chartHeight - (txn.amount / maxAmount) * chartHeight;
+                
+                // Calculate color based on position in data (RAG progression)
+                const progress = index / (numPoints - 1);
+                let color;
+                if (progress < 0.5) {
+                    // Green to yellow
+                    const localProgress = progress * 2;
+                    const r = Math.round(16 + (245 - 16) * localProgress);
+                    const g = Math.round(185 + (158 - 185) * localProgress);
+                    const b = Math.round(129 + (11 - 129) * localProgress);
+                    color = `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    // Yellow to red
+                    const localProgress = (progress - 0.5) * 2;
+                    const r = Math.round(245 + (255 - 245) * localProgress);
+                    const g = Math.round(158 + (54 - 158) * localProgress);
+                    const b = Math.round(11 + (33 - 11) * localProgress);
+                    color = `rgb(${r}, ${g}, ${b})`;
+                }
+                
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', '4');
+                circle.setAttribute('fill', color);
+                circle.setAttribute('stroke', '#0B2026');
+                circle.setAttribute('stroke-width', '2');
+                svg.appendChild(circle);
+            });
+            
+            chartContainer.appendChild(svg);
+            
+            // Add labels container
+            const labelsContainer = document.createElement('div');
+            labelsContainer.className = 'absolute bottom-0 left-0 right-0 flex justify-between px-4';
+            labelsContainer.style.height = '45px';
+            
+            // Decide how many labels to show based on data length
+            let labelIndices = [];
+            if (numPoints <= 6) {
+                labelIndices = data.map((_, i) => i);
+            } else if (numPoints <= 12) {
+                labelIndices = data.map((_, i) => i);
+            } else if (numPoints <= 20) {
+                // Show every other label
+                labelIndices = data.map((_, i) => i).filter((_, i) => i % 2 === 0);
+            } else {
+                // Show fewer labels for very long periods
+                labelIndices = data.map((_, i) => i).filter((_, i) => i % 4 === 0);
+                labelIndices.push(numPoints - 1); // Always show last
+            }
+            
+            data.forEach((txn, index) => {
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'flex flex-col items-center';
+                labelDiv.style.flex = '1';
+                
+                const shouldShowLabel = labelIndices.includes(index);
+                
+                labelDiv.innerHTML = `
+                    <div class="text-xs text-gray-500 mt-1">${shouldShowLabel ? txn.dateLabel : ''}</div>
+                `;
+                labelsContainer.appendChild(labelDiv);
+            });
+            
+            chartContainer.appendChild(labelsContainer);
+        }
+
+        // Update transaction table
+        function updateTable(period) {
+            const data = transactionData[period];
+            const tbody = document.querySelector('.overflow-x-auto table tbody');
+            
+            // Clear existing rows
+            tbody.innerHTML = '';
+            
+            // Add new rows (show most recent transactions, max 6)
+            const recentData = data.slice(-6);
+            recentData.reverse().forEach(txn => {
+                const isFlagged = txn.amount >= 8500;
+                const statusClass = isFlagged ? 'bg-databricks-lava' : 'bg-gray-600';
+                const statusText = isFlagged ? 'FLAGGED' : 'NORMAL';
+                const amountClass = isFlagged ? 'text-databricks-lava' : 'text-gray-300';
+                
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-800';
+                row.innerHTML = `
+                    <td class="py-2">${txn.date}</td>
+                    <td class="py-2">${txn.time}</td>
+                    <td class="py-2">Wire Transfer</td>
+                    <td class="py-2 text-right ${amountClass} font-bold">€${txn.amount.toLocaleString()}</td>
+                    <td class="py-2 masked-text">ACCT-***-4521</td>
+                    <td class="py-2"><span class="${statusClass} text-white text-xs px-2 py-0.5 rounded">${statusText}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Time period change handler
+        document.getElementById('timePeriod').addEventListener('change', function() {
+            const period = parseInt(this.value);
+            updateChart(period);
+            updateTable(period);
+        });
+
+        // Mark as False Positive
+        function markAsFalsePositive() {
+            if (confirm('Mark Alert #271 as False Positive?\n\nThis will close the alert and mark it as reviewed. This action can be reversed by a supervisor.')) {
+                // Update the alert card in the left panel
+                const alertCard = document.querySelector('.alert-pulse');
+                
+                // Remove pulse animation
+                alertCard.classList.remove('alert-pulse');
+                
+                // Change styling to greyed out
+                alertCard.classList.remove('bg-red-900', 'bg-opacity-40', 'border-databricks-lava');
+                alertCard.classList.add('bg-gray-800', 'border-gray-700', 'opacity-60');
+                
+                // Update the status badge
+                const statusBadge = alertCard.querySelector('.bg-databricks-lava');
+                statusBadge.classList.remove('bg-databricks-lava');
+                statusBadge.classList.add('bg-gray-600');
+                statusBadge.textContent = 'REVIEWED';
+                
+                // Update the text colors
+                const alertNumber = alertCard.querySelector('.text-databricks-lava');
+                alertNumber.classList.remove('text-databricks-lava');
+                alertNumber.classList.add('text-gray-400');
+                
+                const riskType = alertCard.querySelector('.text-red-300');
+                if (riskType) {
+                    riskType.classList.remove('text-red-300');
+                    riskType.classList.add('text-gray-400');
+                }
+                
+                const riskScoreSpan = alertCard.querySelector('.text-red-300.font-bold');
+                if (riskScoreSpan) {
+                    riskScoreSpan.classList.remove('text-red-300');
+                    riskScoreSpan.classList.add('text-gray-400');
+                }
+                
+                // Show success message
+                alert('✓ Alert Marked as False Positive\n\nAlert #271 has been marked as a false positive and moved to REVIEWED status.\n\nReason: False Positive - No Structuring Detected\nReviewed by: John Martinez\nTimestamp: ' + new Date().toLocaleString());
+            }
+        }
+
+        // Attach to the button
+        document.addEventListener('DOMContentLoaded', function() {
+            const falsePositiveBtn = document.querySelector('button.bg-gray-700.hover\\:bg-gray-600');
+            if (falsePositiveBtn && falsePositiveBtn.textContent.includes('False Positive')) {
+                falsePositiveBtn.onclick = markAsFalsePositive;
+            }
+        });
+
+        // Modal controls
+        function openPatternModal() {
+            document.getElementById('patternModal').classList.add('active');
+        }
+
+        function closePatternModal() {
+            document.getElementById('patternModal').classList.remove('active');
+        }
+
+        function openModelModal() {
+            document.getElementById('modelModal').classList.add('active');
+        }
+
+        function closeModelModal() {
+            document.getElementById('modelModal').classList.remove('active');
+        }
+
+        function openEDDModal() {
+            document.getElementById('eddModal').classList.add('active');
+        }
+
+        function closeEDDModal() {
+            document.getElementById('eddModal').classList.remove('active');
+        }
+
+        function closeInfoRequestModal() {
+            document.getElementById('infoRequestModal').classList.remove('active');
+            agentCheckInProgress = false;
+            // Reset modal content to original
+            setTimeout(() => {
+                const modal = document.getElementById('infoRequestModal');
+                const modalContent = modal.querySelector('.modal-content');
+                modalContent.innerHTML = `
+                    <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-white">Request Additional Information</h3>
+                        <button onclick="closeInfoRequestModal()" class="text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <div class="bg-blue-900 bg-opacity-30 border border-databricks-lava rounded-lg p-4">
+                            <p class="text-gray-300 text-sm">
+                                This structured information request will be sent to the <strong class="text-blue-300">Relationship Manager</strong> for customer <span class="masked-text">CUST-****-7821</span>. The RM will contact the customer directly to gather the requested information.
+                            </p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-gray-300 text-sm font-medium block mb-2">Relationship Manager:</label>
+                                <select class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm">
+                                    <option>Maria Jansen (Primary RM - SME Banking)</option>
+                                    <option>Thomas de Vries (Backup RM)</option>
+                                    <option>Lisa van der Berg (Senior RM)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-gray-300 text-sm font-medium block mb-2">Information Request Type:</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                        <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" checked>
+                                        <span class="text-gray-200 text-sm">Source of Funds Documentation</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                        <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" checked>
+                                        <span class="text-gray-200 text-sm">Purpose of Transaction(s)</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                        <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" checked>
+                                        <span class="text-gray-200 text-sm">Beneficiary Relationship Documentation</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                        <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600">
+                                        <span class="text-gray-200 text-sm">Updated Business Financial Statements</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                        <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600">
+                                        <span class="text-gray-200 text-sm">Proof of Business Operations</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="text-gray-300 text-sm font-medium block mb-2">Priority Level:</label>
+                                <select class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm">
+                                    <option>High - Response required within 3 business days</option>
+                                    <option>Medium - Response required within 7 business days</option>
+                                    <option>Standard - Response required within 14 business days</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-gray-300 text-sm font-medium block mb-2">Additional Details:</label>
+                                <textarea class="w-full bg-gray-700 border border-gray-600 text-white rounded p-3 text-sm" rows="4" placeholder="Provide specific questions or context for the Relationship Manager...">Please request the following from the customer:
+
+1. Documentation showing the source of the €56,700 transferred over Oct 24-29, 2025
+2. Explanation for why transfers were structured as 6 separate amounts below €10K
+3. Details on beneficiary account ACCT-***-4521 including relationship and purpose
+4. Any contracts, invoices, or business documentation supporting these transfers
+
+Alert #271 - High ML confidence score (0.92) for structuring typology.</textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <button class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="confirmInfoRequest()">
+                                Send Information Request
+                            </button>
+                            <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="closeInfoRequestModal()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }, 300);
+        }
+
+        function confirmEDD() {
+            // Navigate to scene 4
+            window.location.href = 'scene4-edd-investigation.html';
+        }
+
+        let agentCheckInProgress = false;
+        
+        function openInfoRequestModal() {
+            if (agentCheckInProgress) return;
+            
+            agentCheckInProgress = true;
+            const modal = document.getElementById('infoRequestModal');
+            modal.classList.add('active');
+            const modalContent = modal.querySelector('.modal-content');
+            
+            // Immediately show agent checking status
+            modalContent.innerHTML = `
+                <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                    <h3 class="text-xl font-bold text-white">Checking Request Status</h3>
+                </div>
+                <div class="p-6 space-y-6">
+                    <div class="bg-blue-900 bg-opacity-30 border border-databricks-lava rounded-lg p-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p class="text-gray-300 text-sm">Agent checking customer status and existing requests...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Simulate agent check delay
+            setTimeout(() => {
+                showInfoRequestResults();
+            }, 2000);
+        }
+
+        function showInfoRequestResults() {
+            const modal = document.getElementById('infoRequestModal');
+            const modalContent = modal.querySelector('.modal-content');
+            
+            // Show result that 3 items were already requested
+            modalContent.innerHTML = `
+                    <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-white">Request Status Check Complete</h3>
+                        <button onclick="closeInfoRequestModal()" class="text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                            <h4 class="text-yellow-300 font-semibold mb-2 flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                Previous Requests Detected
+                            </h4>
+                            <p class="text-gray-300 text-sm mb-3">
+                                The Sanctions Screening team has already requested the following information types for this customer:
+                            </p>
+                            <ul class="space-y-2 mb-4">
+                                <li class="text-gray-300 text-sm flex items-start">
+                                    <svg class="w-4 h-4 text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Source of Funds Documentation (Requested 2 days ago by Sanctions team)
+                                </li>
+                                <li class="text-gray-300 text-sm flex items-start">
+                                    <svg class="w-4 h-4 text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Purpose of Transaction(s) (Requested 2 days ago by Sanctions team)
+                                </li>
+                                <li class="text-gray-300 text-sm flex items-start">
+                                    <svg class="w-4 h-4 text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Beneficiary Relationship Documentation (Requested 2 days ago by Sanctions team)
+                                </li>
+                            </ul>
+                            <p class="text-gray-300 text-sm">
+                                These requests are still pending customer response. Do you wish to make a new request for additional information not covered above?
+                            </p>
+                        </div>
+                        
+                        <button class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="sendReminder()">
+                            Send Reminder for Existing Requests
+                        </button>
+                        
+                        <div>
+                            <label class="text-gray-300 text-sm font-medium block mb-2">Available Information Request Types:</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center space-x-3 bg-gray-700 opacity-50 p-3 rounded cursor-not-allowed">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" disabled checked>
+                                    <span class="text-gray-400 text-sm line-through">Source of Funds Documentation (Already requested)</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-gray-700 opacity-50 p-3 rounded cursor-not-allowed">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" disabled checked>
+                                    <span class="text-gray-400 text-sm line-through">Purpose of Transaction(s) (Already requested)</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-gray-700 opacity-50 p-3 rounded cursor-not-allowed">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600" disabled checked>
+                                    <span class="text-gray-400 text-sm line-through">Beneficiary Relationship Documentation (Already requested)</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600">
+                                    <span class="text-gray-200 text-sm">Updated Business Financial Statements</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-gray-800 p-3 rounded cursor-pointer hover:bg-gray-700">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600">
+                                    <span class="text-gray-200 text-sm">Proof of Business Operations</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <button class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="sendNewInfoRequest()">
+                                Send New Request
+                            </button>
+                            <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors" onclick="closeInfoRequestModal()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            agentCheckInProgress = false;
+        }
+        
+        function sendReminder() {
+            alert('✓ Reminder Sent\n\nA reminder has been sent to Relationship Manager Maria Jansen regarding the 3 pending information requests:\n\n• Source of Funds Documentation\n• Purpose of Transaction(s)\n• Beneficiary Relationship Documentation\n\nThe customer will be contacted within 24 hours.');
+            closeInfoRequestModal();
+        }
+        
+        function sendNewInfoRequest() {
+            alert('✓ New Information Request Sent\n\nYour additional request has been sent to Relationship Manager Maria Jansen.\n\nThe customer will be contacted within 24 hours.\nExpected response: Within 3 business days');
+            closeInfoRequestModal();
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        }
+    </script>
+
+</body>
+</html>

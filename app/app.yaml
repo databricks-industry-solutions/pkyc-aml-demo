@@ -1,0 +1,14 @@
+command:
+  - flask
+  - --app
+  - app.py
+  - run
+
+# DATABRICKS_HOST is auto-set by the Databricks Apps platform.
+# GENIE_SPACE_ID and DASHBOARD_EMBED_URL are workspace-specific — set them here
+# before deploying to a new workspace, or via the app UI's Environment tab.
+env:
+  - name: GENIE_SPACE_ID
+    value: ""
+  - name: DASHBOARD_EMBED_URL
+    value: ""

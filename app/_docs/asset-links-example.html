@@ -1,0 +1,243 @@
+<!-- 
+EXAMPLE: How to Add Clickable Links to Real Databricks Assets
+
+This is a reference file showing how to add links from your demo HTML to real 
+deployed Databricks assets (tables, pipelines, dashboards, etc.)
+
+Copy these patterns into your scene files when ready.
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Asset Links Example</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">Adding Real Asset Links - Examples</h1>
+
+        <!-- Example 1: Unity Catalog Table Link -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+            <h3 class="text-xl font-bold mb-3">🔗 View Customer Table in Unity Catalog</h3>
+            <p class="text-gray-400 mb-4">Click below to explore the customer data in your workspace:</p>
+            <a id="customer-table-link" 
+               href="#" 
+               class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+               target="_blank">
+                Open Unity Catalog Table
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Example 2: DLT Pipeline Link -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+            <h3 class="text-xl font-bold mb-3">⚡ View DLT Pipeline</h3>
+            <p class="text-gray-400 mb-4">Monitor the real-time streaming pipeline:</p>
+            <a id="dlt-pipeline-link" 
+               href="#" 
+               class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
+               target="_blank">
+                Open DLT Pipeline
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Example 3: ML Model Link -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+            <h3 class="text-xl font-bold mb-3">🤖 View ML Model</h3>
+            <p class="text-gray-400 mb-4">Inspect the transaction risk scoring model:</p>
+            <a id="ml-model-link" 
+               href="#" 
+               class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors"
+               target="_blank">
+                Open ML Model in Registry
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Example 4: Dashboard Link -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+            <h3 class="text-xl font-bold mb-3">📊 View SQL Dashboard</h3>
+            <p class="text-gray-400 mb-4">Explore the transaction monitoring dashboard:</p>
+            <a id="dashboard-link" 
+               href="#" 
+               class="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
+               target="_blank">
+                Open SQL Dashboard
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Example 5: Multiple Links in Card Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-blue-500 transition-colors">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-bold">Transactions Table</h4>
+                    <span class="text-xs bg-blue-900 text-blue-300 px-2 py-1 rounded">Unity Catalog</span>
+                </div>
+                <p class="text-sm text-gray-400 mb-3">Real-time transaction data</p>
+                <a id="transaction-table-link" href="#" class="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1" target="_blank">
+                    View Table →
+                </a>
+            </div>
+
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-green-500 transition-colors">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-bold">Ingestion Workflow</h4>
+                    <span class="text-xs bg-green-900 text-green-300 px-2 py-1 rounded">Workflow</span>
+                </div>
+                <p class="text-sm text-gray-400 mb-3">Automated data pipeline</p>
+                <a id="workflow-link" href="#" class="text-green-400 hover:text-green-300 text-sm flex items-center gap-1" target="_blank">
+                    View Workflow →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript to load asset links from Flask backend -->
+    <script>
+        // Fetch asset links from your Flask backend
+        async function loadAssetLinks() {
+            try {
+                // Call the /api/assets endpoint from app.py
+                const response = await fetch('/api/assets');
+                const assets = await response.json();
+                
+                console.log('Loaded asset links:', assets);
+                
+                // Update all link elements
+                const linkMappings = {
+                    'customer-table-link': assets.customer_table,
+                    'transaction-table-link': assets.transaction_table,
+                    'dlt-pipeline-link': assets.dlt_pipeline,
+                    'ml-model-link': assets.ml_model,
+                    'dashboard-link': assets.dashboard,
+                    'workflow-link': assets.workflow || '#',
+                };
+                
+                // Apply links to elements
+                Object.entries(linkMappings).forEach(([elementId, url]) => {
+                    const element = document.getElementById(elementId);
+                    if (element && url) {
+                        element.href = url;
+                        
+                        // Add click tracking (optional)
+                        element.addEventListener('click', () => {
+                            console.log(`User clicked: ${elementId} -> ${url}`);
+                        });
+                    }
+                });
+                
+                console.log('Asset links loaded successfully');
+                
+            } catch (error) {
+                console.error('Failed to load asset links:', error);
+                // Fallback: disable links or show message
+                document.querySelectorAll('a[id*="-link"]').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        alert('Asset links not configured yet. Deploy your real assets first!');
+                    });
+                });
+            }
+        }
+        
+        // Alternative: Load workspace config
+        async function loadWorkspaceConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                console.log('Workspace config:', config);
+                
+                // You can use this to build custom URLs
+                // Example: const tableUrl = `${config.workspace_url}/explore/data/${config.catalog}/...`;
+                
+            } catch (error) {
+                console.error('Failed to load workspace config:', error);
+            }
+        }
+        
+        // Load on page ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAssetLinks();
+            loadWorkspaceConfig();
+        });
+    </script>
+</body>
+</html>
+
+
+<!-- 
+================================================================================
+HOW TO ADD THESE LINKS TO YOUR ACTUAL SCENES
+================================================================================
+
+STEP 1: Choose where to add links in your scene
+    - At the bottom of a scene as a "View Real Implementation" section
+    - In a sidebar panel
+    - As hover tooltips on existing elements
+    - In a modal that opens with a button click
+
+STEP 2: Copy the HTML structure
+    - Copy one of the card examples above
+    - Paste into your scene HTML (e.g., scene2-txn-screening.html)
+    - Adjust styling to match your scene's theme
+
+STEP 3: Copy the JavaScript
+    - Add the loadAssetLinks() function to your scene's <script> section
+    - Call it on page load: document.addEventListener('DOMContentLoaded', loadAssetLinks)
+
+STEP 4: Update app.py with real asset IDs
+    - Once you deploy your real tables/pipelines/dashboards
+    - Update the ASSET_LINKS dictionary in app.py with actual IDs
+    - Redeploy your Databricks App
+
+EXAMPLE FOR SCENE 2 (Transaction Screening):
+============================================
+
+Add this at the bottom of scene2-txn-screening.html, before the closing </body>:
+
+<div class="fixed bottom-20 right-6 bg-gray-800 rounded-lg p-4 border border-gray-700 shadow-lg max-w-sm">
+    <h4 class="text-sm font-bold mb-2">🔗 Real Implementation</h4>
+    <a id="dlt-pipeline-link" 
+       href="#" 
+       class="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 mb-2" 
+       target="_blank">
+        View DLT Pipeline →
+    </a>
+    <a id="transaction-table-link" 
+       href="#" 
+       class="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1" 
+       target="_blank">
+        View Transactions Table →
+    </a>
+</div>
+
+<script>
+    async function loadAssetLinks() {
+        try {
+            const response = await fetch('/api/assets');
+            const assets = await response.json();
+            
+            document.getElementById('dlt-pipeline-link').href = assets.dlt_pipeline;
+            document.getElementById('transaction-table-link').href = assets.transaction_table;
+        } catch (error) {
+            console.error('Failed to load asset links:', error);
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', loadAssetLinks);
+</script>
+
+================================================================================
+-->
+
