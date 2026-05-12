@@ -52,11 +52,16 @@ This demo shows the complete journey — from a customer uploading a passport to
 ### CLI Deployment
 
 ```bash
-# Configure CLI with your workspace
+# 1. Sync notebooks, pipelines, agent source, frontend source, and create
+#    the DLT pipeline + app resource on the workspace
 databricks bundle deploy --target dev
-```
 
-This syncs notebooks, pipelines, agent source, and the frontend app to the workspace and deploys the DLT pipeline.
+# 2. Push the synced app source to the running app compute. DAB syncs app/
+#    files but does not push them to the app; this step is required after
+#    every deploy that changes app/ contents.
+databricks apps deploy kyc-aml-frontend \
+  --source-code-path /Workspace/Users/$(databricks current-user me | jq -r .userName)/.bundle/kyc_aml_demo/dev/files/app
+```
 
 **Override variables** at deploy time:
 

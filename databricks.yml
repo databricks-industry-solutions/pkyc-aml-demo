@@ -50,16 +50,6 @@ sync:
     - "**/_docs"
     - "**/.DS_Store"
 
-# DAB syncs app/ but does not push it to compute. This hook runs after every
-# `databricks bundle deploy` and tells the running compute to use the synced source.
-experimental:
-  scripts:
-    # Push synced source to the running app. Idempotent start (no-op if already ACTIVE),
-    # then deploy. `--source-code-path` is required on first deploy after destroy.
-    postdeploy: |
-      databricks apps start kyc-aml-frontend --target ${bundle.target} 2>/dev/null || true
-      databricks apps deploy kyc-aml-frontend --target ${bundle.target} --source-code-path ${workspace.file_path}/app
-
 permissions:
   - level: CAN_VIEW
     group_name: users
