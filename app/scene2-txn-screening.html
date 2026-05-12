@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWIFT Transaction Screening Dashboard</title>
+    <link rel="icon" href="https://www.databricks.com/en-website-assets/favicon-32x32.png?v=c9b9916c3b27dc51866c46b79a6e9b88" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="theme-config.js"></script>
+    <script src="demo-controls.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson@3"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'databricks-navy': '#0B2026',
+                        'databricks-lava': '#FF3621',
+                        'databricks-oat-medium': '#EEEDE9',
+                        'databricks-oat-light': '#F9F7F4',
+                        'dark-bg': '#0B2026',
+                        'dark-panel': '#0B2026',
+                        'dark-border': 'rgba(238, 237, 233, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B2026;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        code, .font-mono {
+            font-family: 'DM Mono', monospace;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: rgba(238, 237, 233, 0.05);
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(238, 237, 233, 0.2);
+            border-radius: 3px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: rgba(238, 237, 233, 0.3);
+        }
+
+        .risk-low { color: #10b981; }
+        .risk-medium { color: #f59e0b; }
+        .risk-high { color: #ef4444; }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px currentColor; }
+            50% { box-shadow: 0 0 15px currentColor; }
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+
+        /* Fixed width transaction log styling */
+        #transaction-log {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        #transaction-log .transaction-entry {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+        
+        #transaction-log .transaction-text {
+            word-break: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            max-width: 100%;
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        /* Transaction popup modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .transaction-entry:hover {
+            background-color: #374151 !important;
+            cursor: pointer;
+        }
+        
+        .risk-list-item {
+            transition: background-color 0.15s ease;
+        }
+        
+        .risk-list-item:hover {
+            background-color: #374151 !important;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background-color: #374151;
+            color: #f1f5f9;
+        }
+
+        /* Risk summary boxes - clickable */
+        .risk-summary-box {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .risk-summary-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .risk-summary-box:active {
+            transform: translateY(0);
+        }
+
+        /* Risk filter panel */
+        .risk-filter-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .risk-filter-panel.active {
+            max-height: 300px;
+        }
+
+        /* Map panning cursor */
+        #world-map {
+            cursor: grab;
+        }
+
+        #world-map.grabbing {
+            cursor: grabbing;
+        }
+        
+        /* Permanent Navigation Bar */
+        .demo-nav-bar {
+            opacity: 1;
+            height: 80px;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 h-screen overflow-hidden" style="padding-bottom: 80px;">
+    <!-- Transaction Details Modal -->
+    <div id="transaction-modal" class="modal-overlay">
+        <div class="modal-content relative">
+            <button id="modal-close" class="modal-close" title="Close">×</button>
+            <div class="p-6">
+                <div class="border-b border-gray-600 pb-4 mb-6">
+                    <h2 class="text-2xl font-bold text-white mb-2">Payment Message Details</h2>
+                    <p class="text-gray-400 text-sm">FIToFI Customer Credit Transfer Information</p>
+                </div>
+                
+                <div id="modal-transaction-content" class="space-y-6">
+                    <!-- Transaction details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="flex" style="height: calc(100vh - 80px);">
+        <!-- Control Panel (Left) -->
+        <div class="w-80 bg-dark-panel border-r border-dark-border flex flex-col">
+            <!-- Header -->
+            <div class="p-6 border-b border-dark-border">
+                <div class="flex justify-center mb-4">
+                    <img src="DBLogo.png" alt="DB Logo" class="h-12 object-contain">
+                </div>
+                <h1 class="text-2xl font-bold text-white mb-2">SWIFT Dashboard</h1>
+                <p class="text-gray-400 text-sm">Real-time Transaction Screening</p>
+                <div class="demo-timestamp text-xs text-gray-500 font-mono text-center mt-2"></div>
+                
+                <!-- Prominent Metrics -->
+                <div class="mt-4 space-y-2">
+                    <div class="bg-gradient-to-br from-databricks-navy/30 to-databricks-navy/40 border border-databricks-lava/30 rounded-lg p-3">
+                        <div class="text-center">
+                            <div id="messageCounter" class="text-2xl font-bold text-databricks-lava">0</div>
+                            <div class="text-xs text-gray-400 mt-1">Messages Processed</div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-databricks-navy/30 to-blue-900/30 border border-green-500/30 rounded-lg p-3">
+                        <div class="text-center">
+                            <div id="totalValueCounter" class="text-xl font-bold text-green-400">€0</div>
+                            <div class="text-xs text-gray-400 mt-1">Total Payment Value</div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-lg p-3">
+                        <div class="text-center">
+                            <div id="screeningTime" class="text-xl font-bold text-purple-400">0ms</div>
+                            <div class="text-xs text-gray-400 mt-1">Avg Screening Time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="p-6 border-b border-dark-border">
+                <h2 class="text-lg font-semibold text-white mb-4">Statistics</h2>
+                
+                <!-- Current Date -->
+                <div class="mb-4">
+                    <div class="text-sm text-gray-400 mb-1">Date</div>
+                    <div id="current-date" class="text-lg font-mono text-gray-300">--</div>
+                </div>
+                
+                <!-- Simulated Times -->
+                <div class="mb-4 bg-gray-800 rounded-lg p-3">
+                    <div class="text-sm text-gray-400 mb-2">Time (Simulated)</div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400">CET:</span>
+                            <span id="simulated-time-cet" class="text-sm font-mono text-databricks-lava">--:--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400">EST:</span>
+                            <span id="simulated-time-est" class="text-sm font-mono text-databricks-lava">--:--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400">SGT:</span>
+                            <span id="simulated-time-sgt" class="text-sm font-mono text-databricks-lava">--:--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Transactions -->
+                <div class="mb-4">
+                    <div class="text-sm text-gray-400 mb-1">Total Transactions</div>
+                    <div id="total-transactions" class="text-2xl font-bold text-green-400">0</div>
+                </div>
+
+                <!-- Medium Risk Alerts -->
+                <div class="mb-4 risk-summary-box bg-gray-800 rounded-lg p-3 border border-yellow-500" id="medium-risk-box" title="Click to view medium risk transactions">
+                    <div class="text-sm text-gray-400 mb-1">Medium Risk Alerts</div>
+                    <div id="medium-risk-alerts" class="text-2xl font-bold text-yellow-400">0</div>
+                </div>
+
+                <!-- Medium Risk Filter Panel -->
+                <div id="medium-risk-filter-panel" class="risk-filter-panel mb-4 bg-gray-900 rounded-lg border border-yellow-600">
+                    <div class="p-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-semibold text-yellow-400">Medium Risk Messages</h3>
+                            <button id="close-medium-risk-filter" class="text-gray-400 hover:text-white">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="medium-risk-filter-list" class="space-y-2 overflow-y-auto scrollbar-thin" style="max-height: 220px;">
+                            <!-- Filtered medium risk transactions will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blocked Alerts -->
+                <div class="mb-4 risk-summary-box bg-gray-800 rounded-lg p-3 border border-red-500" id="high-risk-box" title="Click to view blocked transactions">
+                    <div class="text-sm text-gray-400 mb-1">Blocked Alerts</div>
+                    <div id="high-risk-alerts" class="text-2xl font-bold text-red-400">0</div>
+                </div>
+
+                <!-- Blocked Risk Filter Panel -->
+                <div id="blocked-risk-filter-panel" class="risk-filter-panel mb-4 bg-gray-900 rounded-lg border border-red-600">
+                    <div class="p-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-semibold text-red-400">Blocked Messages</h3>
+                            <button id="close-blocked-risk-filter" class="text-gray-400 hover:text-white">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="blocked-risk-filter-list" class="space-y-2 overflow-y-auto scrollbar-thin" style="max-height: 220px;">
+                            <!-- Filtered blocked transactions will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="mb-4">
+                    <div class="text-sm text-gray-400 mb-2">Simulation Speed</div>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="speed" value="realtime" class="mr-2 text-blue-600">
+                            <span class="text-white">Real Time</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="speed" value="fastforward" class="mr-2 text-blue-600" checked>
+                            <span class="text-white">Fast Forward</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="speed" value="superfastforward" class="mr-2 text-blue-600">
+                            <span class="text-white">Super Fast</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Control Button -->
+                <button id="pause-resume-btn" class="w-full bg-databricks-lava hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded transition-colors">
+                    Pause Simulation
+                </button>
+            </div>
+        </div>
+
+        <!-- Visualization Area (Center) -->
+        <div class="flex-1 bg-dark-bg relative">
+            <!-- Canvas Container -->
+            <div class="absolute inset-0 p-4">
+                <div class="w-full h-full bg-gray-900 rounded-lg relative overflow-hidden">
+                    <canvas id="world-map" class="w-full h-full"></canvas>
+                    
+                    <!-- Zoom Controls -->
+                    <div class="absolute top-4 left-4 bg-dark-panel border border-dark-border rounded-lg p-2 flex flex-col space-y-1">
+                        <button id="zoom-in" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center justify-center transition-colors" title="Zoom In">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="M21 21l-4.35-4.35"></path>
+                                <line x1="11" y1="8" x2="11" y2="14"></line>
+                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                        </button>
+                        <button id="zoom-out" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center justify-center transition-colors" title="Zoom Out">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="M21 21l-4.35-4.35"></path>
+                                <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                        </button>
+                        <div class="text-xs text-gray-400 text-center px-1">
+                            <span id="zoom-level">100%</span>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="absolute top-4 right-4 bg-dark-panel border border-dark-border rounded-lg p-4">
+                        <h3 class="text-sm font-semibold text-white mb-2">Legend</h3>
+                        <div class="space-y-1 text-xs">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                                <span class="text-gray-300">Complete</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                                <span class="text-gray-300">Investigate</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full bg-databricks-lava mr-2"></div>
+                                <span class="text-gray-300">Blocked</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction Log Panel (Right) -->
+        <div class="w-96 bg-dark-panel border-l border-dark-border flex flex-col">
+            <div class="p-4 border-b border-dark-border flex-shrink-0">
+                <h2 class="text-lg font-semibold text-white">SWIFT Transaction Log</h2>
+                <p class="text-xs text-gray-400">Real-time payment message monitoring</p>
+            </div>
+            <div class="flex-1 p-4 overflow-hidden">
+                <div id="transaction-log" class="h-full bg-gray-900 rounded-lg p-3 overflow-y-auto scrollbar-thin">
+                    <!-- Transaction entries will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let canvas, ctx;
+        let isSimulationRunning = true;
+        let simulatedTime = new Date();
+        let totalTransactions = 0;
+        let highRiskAlerts = 0;
+        let mediumRiskAlerts = 0;
+        let totalPaymentValue = 0;
+        let screeningTimes = [];
+        let activeTransactions = [];
+        let allTransactions = []; // Store all transactions for filtering
+        let animationId;
+        
+        // D3.js variables for world map
+        let worldData = null;
+        let projection, pathGenerator;
+        let currentZoom = 1;
+        const minZoom = 0.5;
+        const maxZoom = 5;
+        let panOffset = { x: 0, y: 0 }; // Pan offset for dragging
+        
+        // Map panning variables
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let lastPanOffset = { x: 0, y: 0 };
+        
+        // Speed control variables
+        let simulationSpeed = 'fastforward'; // 'realtime' or 'fastforward'
+        let lastTransactionTime = 0;
+        let lastTimeUpdate = 0;
+        
+        // Modal variables
+        let currentModalTransaction = null;
+        
+        // Risk filter variables
+        let activeRiskFilter = null; // 'high', 'medium', or null
+        let isUserInteracting = false; // Track if user is hovering/clicking in filter list
+
+        // Configuration loaded from config.json
+        let config = null;
+        let financialHubs = {};
+        let riskLevels = {};
+
+        // Load configuration from JSON file
+        async function loadConfiguration() {
+            try {
+                const response = await fetch('config.json');
+                if (!response.ok) {
+                    throw new Error(`Failed to load config.json: ${response.statusText}`);
+                }
+                config = await response.json();
+                
+                // Set global variables from config
+                financialHubs = config.financialHubs;
+                riskLevels = config.riskLevels;
+                
+                console.log('✅ Configuration loaded successfully from config.json');
+                console.log(`Loaded ${Object.keys(financialHubs).length} financial hubs`);
+                console.log('Risk levels:', Object.keys(riskLevels));
+                
+                return true;
+            } catch (error) {
+                console.warn('⚠️ Could not load config.json (this is normal when opening index.html directly):', error.message);
+                console.log('📋 Using built-in default configuration');
+                // Fallback to default configuration
+                loadDefaultConfiguration();
+                return false;
+            }
+        }
+
+        // Fallback default configuration (used when file is opened directly without a server)
+        function loadDefaultConfiguration() {
+            financialHubs = {
+                'NYC': { name: 'New York City', lat: 40.7128, lon: -74.0060, code: 'NYC', flag: '🇺🇸' },
+                'LDN': { name: 'London', lat: 51.5074, lon: -0.1278, code: 'LDN', flag: '🇬🇧' },
+                'HKG': { name: 'Hong Kong', lat: 22.3193, lon: 114.1694, code: 'HKG', flag: '🇭🇰' },
+                'SGP': { name: 'Singapore', lat: 1.3521, lon: 103.8198, code: 'SGP', flag: '🇸🇬' },
+                'SFO': { name: 'San Francisco', lat: 37.7749, lon: -122.4194, code: 'SFO', flag: '🇺🇸' },
+                'CHI': { name: 'Chicago', lat: 41.8781, lon: -87.6298, code: 'CHI', flag: '🇺🇸' },
+                'LAX': { name: 'Los Angeles', lat: 34.0522, lon: -118.2437, code: 'LAX', flag: '🇺🇸' },
+                'SHA': { name: 'Shanghai', lat: 31.2304, lon: 121.4737, code: 'SHA', flag: '🇨🇳' },
+                'SEL': { name: 'Seoul', lat: 37.5665, lon: 126.9780, code: 'SEL', flag: '🇰🇷' },
+                'FRA': { name: 'Frankfurt', lat: 50.1109, lon: 8.6821, code: 'FRA', flag: '🇩🇪' },
+                'DXB': { name: 'Dubai', lat: 25.2048, lon: 55.2708, code: 'DXB', flag: '🇦🇪' },
+                'AMS': { name: 'Amsterdam', lat: 52.3676, lon: 4.9041, code: 'AMS', flag: '🇳🇱' },
+                'PAR': { name: 'Paris', lat: 48.8566, lon: 2.3522, code: 'PAR', flag: '🇫🇷' },
+                'MAD': { name: 'Madrid', lat: 40.4168, lon: -3.7038, code: 'MAD', flag: '🇪🇸' },
+                'ROM': { name: 'Rome', lat: 41.9028, lon: 12.4964, code: 'ROM', flag: '🇮🇹' },
+                'TKY': { name: 'Tokyo', lat: 35.6762, lon: 139.6503, code: 'TKY', flag: '🇯🇵' },
+                'DUB': { name: 'Dublin', lat: 53.3498, lon: -6.2603, code: 'DUB', flag: '🇮🇪' }
+            };
+            
+            riskLevels = {
+                low: { color: '#10b981', weight: 95, label: 'Complete' },
+                medium: { color: '#f59e0b', weight: 4, label: 'Investigate' },
+                high: { color: '#ef4444', weight: 1, label: 'Blocked' }
+            };
+            
+            console.log(`Loaded ${Object.keys(financialHubs).length} default financial hubs`);
+        }
+
+        // Load world map data using D3.js
+        async function loadWorldData() {
+            try {
+                // Load world topology data from a public CDN
+                const world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+                worldData = topojson.feature(world, world.objects.countries);
+                
+                // Set up projection and path generator
+                projection = d3.geoNaturalEarth1()
+                    .scale(getBaseScale() * currentZoom)
+                    .translate([canvas.width / 2, canvas.height / 2]);
+                    
+                pathGenerator = d3.geoPath().projection(projection);
+                
+                console.log('World map data loaded successfully');
+            } catch (error) {
+                console.error('Failed to load world map data:', error);
+                // Fallback to a simple world outline if loading fails
+                createFallbackWorldData();
+            }
+        }
+        
+        // Simple fallback world data if external loading fails
+        function createFallbackWorldData() {
+            worldData = {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        geometry: {
+                            type: "Polygon",
+                            coordinates: [[
+                                [-180, -60], [180, -60], [180, 85], [-180, 85], [-180, -60]
+                            ]]
+                        }
+                    }
+                ]
+            };
+            
+            projection = d3.geoNaturalEarth1()
+                .scale(getBaseScale() * currentZoom)
+                .translate([canvas.width / 2, canvas.height / 2]);
+                
+            pathGenerator = d3.geoPath().projection(projection);
+        }
+
+        // Calculate base scale for projection
+        function getBaseScale() {
+            return Math.min(canvas.width, canvas.height) / 7;
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            if (currentZoom < maxZoom) {
+                currentZoom = Math.min(currentZoom * 1.5, maxZoom);
+                updateZoom();
+            }
+        }
+
+        function zoomOut() {
+            if (currentZoom > minZoom) {
+                currentZoom = Math.max(currentZoom / 1.5, minZoom);
+                updateZoom();
+            }
+        }
+
+        function updateZoom() {
+            if (projection) {
+                projection.scale(getBaseScale() * currentZoom)
+                         .translate([canvas.width / 2 + panOffset.x, canvas.height / 2 + panOffset.y]);
+            }
+            
+            // Update zoom level display
+            const zoomLevel = Math.round(currentZoom * 100);
+            document.getElementById('zoom-level').textContent = `${zoomLevel}%`;
+            
+            // Update button states
+            const zoomInBtn = document.getElementById('zoom-in');
+            const zoomOutBtn = document.getElementById('zoom-out');
+            
+            if (currentZoom >= maxZoom) {
+                zoomInBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                zoomInBtn.disabled = true;
+            } else {
+                zoomInBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                zoomInBtn.disabled = false;
+            }
+            
+            if (currentZoom <= minZoom) {
+                zoomOutBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                zoomOutBtn.disabled = true;
+            } else {
+                zoomOutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                zoomOutBtn.disabled = false;
+            }
+        }
+
+        // Speed control functions
+        function changeSimulationSpeed(newSpeed) {
+            simulationSpeed = newSpeed;
+            lastTransactionTime = Date.now();
+            lastTimeUpdate = Date.now();
+            console.log(`Simulation speed changed to: ${newSpeed}`);
+        }
+
+        function getTransactionInterval() {
+            // Return transaction generation interval in milliseconds
+            if (simulationSpeed === 'realtime') {
+                return 15000; // Generate transaction every 15 seconds (2 messages per 30 seconds)
+            } else if (simulationSpeed === 'fastforward') {
+                return 1000; // Fast forward mode - every 1 second for overview
+            } else if (simulationSpeed === 'superfastforward') {
+                return 100; // Super fast mode - every 100ms (10x real time)
+            }
+        }
+
+        function getTimeUpdateInterval() {
+            // Return time update interval and increment
+            if (simulationSpeed === 'realtime') {
+                return {
+                    interval: 1000, // Update every 1 second
+                    increment: 30   // Add 30 seconds per real second (1s = 30s)
+                };
+            } else if (simulationSpeed === 'fastforward') {
+                return {
+                    interval: 1000, // Update every 1 second
+                    increment: 240  // Add 4 minutes per real second (1s = 4min)
+                };
+            } else if (simulationSpeed === 'superfastforward') {
+                return {
+                    interval: 100, // Update every 100ms
+                    increment: 30  // Add 30 seconds per 100ms (10x real time)
+                };
+            }
+        }
+
+        // Modal functions
+        function showTransactionModal(transaction) {
+            currentModalTransaction = transaction;
+            populateModalContent(transaction);
+            
+            const modal = document.getElementById('transaction-modal');
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+
+        function hideTransactionModal() {
+            const modal = document.getElementById('transaction-modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scrolling
+            currentModalTransaction = null;
+        }
+
+        function populateModalContent(transaction) {
+            const content = document.getElementById('modal-transaction-content');
+            const formattedAmount = `${transaction.currency} ${transaction.amount.toLocaleString()}`;
+            
+            const riskClass = transaction.risk === 'high' ? 'text-red-400' : 
+                            transaction.risk === 'medium' ? 'text-yellow-400' : 'text-green-400';
+            
+            const originHub = financialHubs[transaction.origin];
+            const destHub = financialHubs[transaction.destination];
+            
+            content.innerHTML = `
+                <!-- Transaction Header -->
+                <div class="bg-gray-800 rounded-lg p-4 border-l-4 border-${transaction.risk === 'high' ? 'red' : transaction.risk === 'medium' ? 'yellow' : 'green'}-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-sm text-gray-400 mb-1">Message Type</div>
+                            <div class="text-xl font-mono ${riskClass} mb-2">FIToFICustomerCreditTransfer (pacs.008)</div>
+                            <div class="text-gray-400 text-sm">${transaction.timestamp.toLocaleString()}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-400 mb-1">Payment Status & Reason Code</div>
+                            <div class="${riskClass} font-bold text-lg">
+                                ${transaction.risk === 'high' ? 'BLOCKED' : transaction.risk === 'medium' ? 'REVIEW REQUIRED' : 'ACCEPTED'}
+                            </div>
+                            <div class="text-2xl font-bold ${riskClass} mt-2">${formattedAmount}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Message Fields -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Interbank Settlement Amount -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="text-sm text-gray-400 mb-2 font-semibold">Interbank Settlement Amount</div>
+                        <div class="text-white font-mono text-lg">${transaction.currency} ${transaction.amount.toLocaleString()}</div>
+                        <div class="text-gray-400 text-sm mt-2">Interbank Settlement Date: ${transaction.timestamp.toISOString().split('T')[0]}</div>
+                    </div>
+
+                    <!-- Instruction Identification -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="text-sm text-gray-400 mb-2 font-semibold">Instruction Identification</div>
+                        <div class="text-white font-mono text-lg">${transaction.id.toUpperCase()}</div>
+                        <div class="text-gray-400 text-sm mt-2">Unique Transaction Identifier</div>
+                    </div>
+
+                    <!-- Debtor -->
+                    <div class="bg-gray-800 rounded-lg p-4 md:col-span-2">
+                        <div class="text-sm text-gray-400 mb-2 font-semibold">Debtor</div>
+                        <div class="text-white">${transaction.orderingCustomer}</div>
+                    </div>
+
+                    <!-- Creditor -->
+                    <div class="bg-gray-800 rounded-lg p-4 md:col-span-2">
+                        <div class="text-sm text-gray-400 mb-2 font-semibold">Creditor</div>
+                        <div class="text-white">${transaction.beneficiaryCustomer}</div>
+                    </div>
+
+                    <!-- Intermediary Agent -->
+                    <div class="bg-gray-800 rounded-lg p-4 md:col-span-2">
+                        <div class="text-sm text-gray-400 mb-2 font-semibold">Intermediary Agent</div>
+                        <div class="text-white">${transaction.intermediaryInstitution}</div>
+                    </div>
+
+                    <!-- Remittance Information -->
+                    <div class="bg-gray-800 rounded-lg p-4 md:col-span-2">
+                        <div class="text-sm text-gray-400 mb-2 font-semibold">Remittance Information</div>
+                        <div class="text-white">${transaction.remittanceInformation}</div>
+                    </div>
+                </div>
+
+                <!-- Route Information -->
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <div class="text-sm text-gray-400 mb-3 font-semibold">Payment Route</div>
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="text-center">
+                            <div class="w-3 h-3 bg-databricks-lava rounded-full mx-auto mb-1"></div>
+                            <div class="text-xs text-gray-400 mb-1">Debtor Agent</div>
+                            <div class="text-white font-semibold">${transaction.origin}</div>
+                            <div class="text-gray-400 flex items-center justify-center gap-1">
+                                <span class="text-lg">${originHub.flag}</span>
+                                <span>${originHub.name}</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 mx-4">
+                            <div class="h-0.5 bg-gradient-to-r from-blue-500 to-green-500 relative">
+                                <div class="absolute right-0 top-0 w-2 h-2 bg-green-500 rounded-full transform translate-x-1 -translate-y-0.75"></div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1"></div>
+                            <div class="text-xs text-gray-400 mb-1">Creditor Agent</div>
+                            <div class="text-white font-semibold">${transaction.destination}</div>
+                            <div class="text-gray-400 flex items-center justify-center gap-1">
+                                <span class="text-lg">${destHub.flag}</span>
+                                <span>${destHub.name}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Amount Display with RAG Coloring -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="text-sm text-gray-400 mb-2">Transaction Amount</div>
+                        <div class="${riskClass} font-bold text-2xl">${formattedAmount}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Risk filter functions
+        function createRiskListEntry(transaction, riskLevel) {
+            const entry = document.createElement('div');
+            entry.className = 'risk-list-item bg-gray-800 rounded p-2 border-l-2 border-' + 
+                (riskLevel === 'high' ? 'red' : 'yellow') + '-500 cursor-pointer';
+            entry.dataset.transactionId = transaction.id; // Add identifier
+            
+            const formattedAmount = `${transaction.currency} ${transaction.amount.toLocaleString()}`;
+            const amountColorClass = riskLevel === 'high' ? 'text-red-400' : 'text-yellow-400';
+            const formattedTime = transaction.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            
+            entry.innerHTML = `
+                <div class="text-xs pointer-events-none">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-mono text-gray-400">${formattedTime}</span>
+                        <span class="font-semibold text-white">${transaction.origin} → ${transaction.destination}</span>
+                    </div>
+                    <div class="${amountColorClass} font-semibold">${formattedAmount}</div>
+                </div>
+            `;
+            
+            // Attach click handler directly to the entry
+            entry.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                showTransactionModal(transaction);
+            };
+            
+            return entry;
+        }
+        
+        function showRiskFilter(riskLevel) {
+            activeRiskFilter = riskLevel;
+            isUserInteracting = false; // Reset interaction state when opening
+            
+            const panelId = riskLevel === 'high' ? 'blocked-risk-filter-panel' : 'medium-risk-filter-panel';
+            const listId = riskLevel === 'high' ? 'blocked-risk-filter-list' : 'medium-risk-filter-list';
+            
+            const panel = document.getElementById(panelId);
+            const list = document.getElementById(listId);
+            
+            // Add interaction tracking to prevent updates during hover/click
+            list.onmouseenter = () => { isUserInteracting = true; };
+            list.onmouseleave = () => { 
+                // Small delay to allow click events to complete
+                setTimeout(() => { isUserInteracting = false; }, 100);
+            };
+            
+            // Filter transactions
+            const filteredTransactions = allTransactions.filter(t => t.risk === riskLevel);
+            
+            // Clear and populate list
+            list.innerHTML = '';
+            
+            if (filteredTransactions.length === 0) {
+                list.innerHTML = '<div class="text-gray-400 text-sm text-center py-4">No messages found</div>';
+            } else {
+                // Show most recent first
+                const reversedTransactions = [...filteredTransactions].reverse();
+                reversedTransactions.forEach(transaction => {
+                    const entry = createRiskListEntry(transaction, riskLevel);
+                    list.appendChild(entry);
+                });
+            }
+            
+            // Show panel
+            panel.classList.add('active');
+        }
+        
+        function addTransactionToRiskFilter(transaction) {
+            // Only add if the filter is active and matches the transaction risk
+            if (!activeRiskFilter || activeRiskFilter !== transaction.risk) {
+                return;
+            }
+            
+            // Don't update if user is interacting with the list
+            if (isUserInteracting) {
+                return;
+            }
+            
+            const listId = transaction.risk === 'high' ? 'blocked-risk-filter-list' : 'medium-risk-filter-list';
+            const list = document.getElementById(listId);
+            
+            // Check if list has the "no messages" placeholder
+            if (list.children.length === 1 && list.children[0].textContent.includes('No messages found')) {
+                list.innerHTML = '';
+            }
+            
+            // Check if this transaction is already in the list
+            const existingEntry = list.querySelector(`[data-transaction-id="${transaction.id}"]`);
+            if (existingEntry) {
+                return; // Already exists, don't add again
+            }
+            
+            // Create and prepend new entry (most recent at top)
+            const entry = createRiskListEntry(transaction, transaction.risk);
+            list.insertBefore(entry, list.firstChild);
+        }
+
+        function hideRiskFilter(riskLevel) {
+            // Reset interaction tracking when hiding
+            isUserInteracting = false;
+            
+            if (riskLevel) {
+                const panelId = riskLevel === 'high' ? 'blocked-risk-filter-panel' : 'medium-risk-filter-panel';
+                const panel = document.getElementById(panelId);
+                panel.classList.remove('active');
+            } else {
+                // Hide both if no risk level specified
+                document.getElementById('medium-risk-filter-panel').classList.remove('active');
+                document.getElementById('blocked-risk-filter-panel').classList.remove('active');
+            }
+            if (!riskLevel || activeRiskFilter === riskLevel) {
+                activeRiskFilter = null;
+            }
+        }
+
+        // Cross-Border Payment Sample Data
+        const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'SGD', 'HKD', 'CNY'];
+        
+        const orderingCustomers = [
+            'APPLE INC / US',
+            'AMAZON.COM INC / US', 
+            'MICROSOFT CORP / US',
+            'ALPHABET INC / US',
+            'META PLATFORMS INC / US',
+            'TESLA INC / US',
+            'SAMSUNG ELECTRONICS / KR',
+            'TOYOTA MOTOR CORP / JP',
+            'ASML HOLDING NV / NL',
+            'TSMC / TW',
+            'BERKSHIRE HATHAWAY / US',
+            'JOHNSON & JOHNSON / US',
+            'VISA INC / US',
+            'WALMART INC / US',
+            'JPMORGAN CHASE / US'
+        ];
+
+        const beneficiaryCustomers = [
+            'GLOBAL TECH SOLUTIONS LTD / GB',
+            'INTERNATIONAL HOLDINGS SA / CH',
+            'ASIA PACIFIC INVESTMENTS / HK',
+            'EUROPEAN FINANCIAL SERVICES / DE',
+            'NORTH AMERICAN TRADING CO / CA',
+            'MIDDLE EAST CAPITAL MGMT / AE',
+            'SINGAPORE INVESTMENT FUND / SG',
+            'TOKYO TRADING HOUSE / JP',
+            'LONDON FINANCIAL GROUP / GB',
+            'AMSTERDAM CAPITAL PARTNERS / NL',
+            'PARIS INVESTMENT GROUP / FR',
+            'MADRID CAPITAL MANAGEMENT / ES',
+            'ROME FINANCIAL HOLDINGS / IT',
+            'DUBAI INVESTMENT AUTHORITY / AE',
+            'SHANGHAI COMMERCIAL BANK / CN',
+            'HONG KONG VENTURES / HK',
+            'FRANKFURT ASSET MGMT / DE'
+        ];
+
+        const intermediaryInstitutions = [
+            'JPMORGAN CHASE BANK NA / NEW YORK',
+            'CITIBANK NA / NEW YORK', 
+            'BANK OF AMERICA NA / CHARLOTTE',
+            'WELLS FARGO BANK NA / SAN FRANCISCO',
+            'HSBC BANK PLC / LONDON',
+            'BARCLAYS BANK PLC / LONDON',
+            'DEUTSCHE BANK AG / FRANKFURT',
+            'UBS AG / ZURICH',
+            'ING BANK NV / AMSTERDAM',
+            'BNP PARIBAS SA / PARIS',
+            'CREDIT AGRICOLE SA / PARIS',
+            'BANCO SANTANDER SA / MADRID',
+            'BBVA / MADRID',
+            'UNICREDIT SPA / ROME',
+            'INTESA SANPAOLO / ROME',
+            'MIZUHO BANK LTD / TOKYO',
+            'SUMITOMO MITSUI BANKING / TOKYO',
+            'BANK OF CHINA / BEIJING',
+            'SINGAPORE DBS BANK / SINGAPORE'
+        ];
+
+        const remittanceInfo = [
+            'TRADE FINANCE PAYMENT',
+            'COMMERCIAL INVOICE SETTLEMENT', 
+            'SUPPLY CHAIN FINANCING',
+            'TECHNOLOGY SERVICES PAYMENT',
+            'EQUIPMENT PURCHASE SETTLEMENT',
+            'SOFTWARE LICENSE PAYMENT',
+            'CONSULTING SERVICES FEE',
+            'INTERNATIONAL TRADE SETTLEMENT',
+            'COMMODITY PURCHASE PAYMENT',
+            'TREASURY MANAGEMENT',
+            'FOREIGN EXCHANGE SETTLEMENT',
+            'INVESTMENT PROCEEDS',
+            'DIVIDEND PAYMENT',
+            'ROYALTY PAYMENT',
+            'INTERCOMPANY TRANSFER'
+        ];
+
+        // Transaction class
+        class Transaction {
+            constructor(origin, destination, amount, risk, currency, orderingCustomer, beneficiaryCustomer, intermediaryInstitution, remittanceInformation) {
+                this.origin = origin;
+                this.destination = destination;
+                this.amount = amount;
+                this.currency = currency;
+                this.risk = risk;
+                this.progress = 0;
+                this.timestamp = new Date(simulatedTime);
+                this.id = Math.random().toString(36).substr(2, 9);
+                this.duration = 2000 + Math.random() * 1000; // 2-3 seconds
+                this.startTime = Date.now();
+                
+                // SWIFT Payment Fields
+                this.orderingCustomer = orderingCustomer;
+                this.beneficiaryCustomer = beneficiaryCustomer;
+                this.intermediaryInstitution = intermediaryInstitution;
+                this.remittanceInformation = remittanceInformation;
+            }
+
+            update() {
+                const elapsed = Date.now() - this.startTime;
+                this.progress = Math.min(elapsed / this.duration, 1);
+                return this.progress < 1;
+            }
+
+            draw() {
+                if (!projection) return; // Skip drawing if projection not ready
+
+                const originHub = financialHubs[this.origin];
+                const destHub = financialHubs[this.destination];
+                
+                // Project latitude/longitude to canvas coordinates
+                const startProjected = projection([originHub.lon, originHub.lat]);
+                const endProjected = projection([destHub.lon, destHub.lat]);
+
+                if (!startProjected || !endProjected) return; // Skip if projection failed
+
+                const [startX, startY] = startProjected;
+                const [endX, endY] = endProjected;
+
+                // Only draw if both points are visible
+                if (startX < 0 || startX > canvas.width || startY < 0 || startY > canvas.height ||
+                    endX < 0 || endX > canvas.width || endY < 0 || endY > canvas.height) {
+                    return;
+                }
+
+                // Calculate great circle arc using D3.js
+                const geoInterpolate = d3.geoInterpolate([originHub.lon, originHub.lat], [destHub.lon, destHub.lat]);
+                
+                // Draw the arc path (faded) - sample points along the great circle
+                ctx.strokeStyle = riskLevels[this.risk].color + '40';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                
+                for (let i = 0; i <= 20; i++) {
+                    const t = i / 20;
+                    const [lon, lat] = geoInterpolate(t);
+                    const projected = projection([lon, lat]);
+                    if (projected) {
+                        const [x, y] = projected;
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                }
+                ctx.stroke();
+
+                // Draw the moving point along the great circle
+                const [currentLon, currentLat] = geoInterpolate(this.progress);
+                const currentProjected = projection([currentLon, currentLat]);
+                
+                if (currentProjected) {
+                    const [currentX, currentY] = currentProjected;
+
+                    ctx.fillStyle = riskLevels[this.risk].color;
+                    ctx.beginPath();
+                    ctx.arc(currentX, currentY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Draw glowing effect for high risk
+                    if (this.risk === 'high') {
+                        ctx.shadowColor = riskLevels[this.risk].color;
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.arc(currentX, currentY, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+        }
+
+        // Initialize the application
+        async function init() {
+            canvas = document.getElementById('world-map');
+            ctx = canvas.getContext('2d');
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Set up event listeners
+            document.getElementById('pause-resume-btn').addEventListener('click', toggleSimulation);
+            document.getElementById('zoom-in').addEventListener('click', zoomIn);
+            document.getElementById('zoom-out').addEventListener('click', zoomOut);
+            
+            // Speed control event listeners
+            document.querySelectorAll('input[name="speed"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        changeSimulationSpeed(e.target.value);
+                    }
+                });
+            });
+
+            // Modal event listeners
+            document.getElementById('modal-close').addEventListener('click', hideTransactionModal);
+            document.getElementById('transaction-modal').addEventListener('click', (e) => {
+                // Close modal when clicking on overlay (not content)
+                if (e.target.id === 'transaction-modal') {
+                    hideTransactionModal();
+                }
+            });
+            
+            // Risk filter event listeners
+            document.getElementById('medium-risk-box').addEventListener('click', () => {
+                if (activeRiskFilter === 'medium') {
+                    hideRiskFilter('medium');
+                } else {
+                    hideRiskFilter('high'); // Hide the other panel
+                    showRiskFilter('medium');
+                }
+            });
+            
+            document.getElementById('high-risk-box').addEventListener('click', () => {
+                if (activeRiskFilter === 'high') {
+                    hideRiskFilter('high');
+                } else {
+                    hideRiskFilter('medium'); // Hide the other panel
+                    showRiskFilter('high');
+                }
+            });
+            
+            document.getElementById('close-medium-risk-filter').addEventListener('click', (e) => {
+                e.stopPropagation();
+                hideRiskFilter('medium');
+            });
+            
+            document.getElementById('close-blocked-risk-filter').addEventListener('click', (e) => {
+                e.stopPropagation();
+                hideRiskFilter('high');
+            });
+            
+            // Map panning event listeners
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                dragStart.x = e.clientX;
+                dragStart.y = e.clientY;
+                lastPanOffset.x = panOffset.x;
+                lastPanOffset.y = panOffset.y;
+                canvas.classList.add('grabbing');
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const dx = e.clientX - dragStart.x;
+                    const dy = e.clientY - dragStart.y;
+                    panOffset.x = lastPanOffset.x + dx;
+                    panOffset.y = lastPanOffset.y + dy;
+                }
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+                canvas.classList.remove('grabbing');
+            });
+            
+            canvas.addEventListener('mouseleave', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    canvas.classList.remove('grabbing');
+                }
+            });
+            
+            // Mouse wheel zoom
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    zoomIn();
+                } else if (e.deltaY > 0) {
+                    zoomOut();
+                }
+            });
+            
+            // Load configuration first
+            await loadConfiguration();
+            
+            // Load world map data
+            await loadWorldData();
+            
+            // Initialize zoom display
+            updateZoom();
+            
+            // Initialize timing variables
+            const now = Date.now();
+            lastTransactionTime = now;
+            lastTimeUpdate = now;
+            
+            // Start the simulation after all data is loaded
+            startSimulation();
+        }
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            
+            // Update projection for new canvas size
+            if (projection) {
+                projection.scale(getBaseScale() * currentZoom)
+                         .translate([canvas.width / 2, canvas.height / 2]);
+            }
+        }
+
+        function drawWorldMap() {
+            if (!worldData || !projection) {
+                // If world data isn't loaded yet, draw a simple background
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
+            // Update projection scale and translation for current canvas size (with pan offset)
+            projection.scale(getBaseScale() * currentZoom)
+                     .translate([canvas.width / 2 + panOffset.x, canvas.height / 2 + panOffset.y]);
+
+            // Clear canvas with ocean color
+            ctx.fillStyle = '#0c1e3d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw graticule (latitude/longitude grid)
+            const graticule = d3.geoGraticule();
+            
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            pathGenerator.context(ctx)(graticule());
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw world countries
+            ctx.strokeStyle = '#4b5563';
+            ctx.fillStyle = '#1f2937';
+            ctx.lineWidth = 0.5;
+
+            worldData.features.forEach(country => {
+                ctx.beginPath();
+                pathGenerator.context(ctx)(country);
+                ctx.fill();
+                ctx.stroke();
+            });
+
+            // Add coordinate labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px Inter, monospace';
+
+            // Draw some major latitude lines with labels
+            const majorLatitudes = [-60, -30, 0, 30, 60];
+            majorLatitudes.forEach(lat => {
+                const [x, y] = projection([0, lat]);
+                if (y >= 0 && y <= canvas.height) {
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`${Math.abs(lat)}°${lat >= 0 ? 'N' : 'S'}`, 30, y + 3);
+                }
+            });
+
+            // Draw compass rose (North arrow)
+            const compassX = 50;
+            const compassY = canvas.height - 80;
+            const compassSize = 20;
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.fillStyle = '#f1f5f9';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.moveTo(compassX, compassY - compassSize);
+            ctx.lineTo(compassX - 6, compassY + 5);
+            ctx.lineTo(compassX, compassY);
+            ctx.lineTo(compassX + 6, compassY + 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 'N' label
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '12px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('N', compassX, compassY - compassSize - 8);
+
+            // Draw financial hubs using real coordinates
+            Object.values(financialHubs).forEach(hub => {
+                const projected = projection([hub.lon, hub.lat]);
+                if (projected) {
+                    const [x, y] = projected;
+
+                    // Only draw if the hub is visible on the current projection
+                    if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                        // Hub circle
+                        ctx.fillStyle = '#FF3621';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 6, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Hub border
+                        ctx.strokeStyle = '#FF5C4D';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                // Hub label with flag
+                ctx.fillStyle = '#e5e7eb';
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${hub.flag} ${hub.code}`, x, y - 12);
+                    }
+                }
+            });
+        }
+
+        function generateTransaction() {
+            const hubCodes = Object.keys(financialHubs);
+            const origin = hubCodes[Math.floor(Math.random() * hubCodes.length)];
+            let destination = hubCodes[Math.floor(Math.random() * hubCodes.length)];
+            
+            // Ensure origin and destination are different
+            while (destination === origin) {
+                destination = hubCodes[Math.floor(Math.random() * hubCodes.length)];
+            }
+
+            // Generate risk level based on weights
+            const rand = Math.random() * 100;
+            let risk;
+            if (rand < riskLevels.high.weight) {
+                risk = 'high';
+            } else if (rand < riskLevels.high.weight + riskLevels.medium.weight) {
+                risk = 'medium';
+            } else {
+                risk = 'low';
+            }
+
+            // Generate SWIFT payment fields
+            const currency = currencies[Math.floor(Math.random() * currencies.length)];
+            const baseAmount = Math.floor(Math.random() * 50000000) + 100000; // $100K to $50M
+            
+            // Adjust amount based on currency (approximate conversion)
+            let amount = baseAmount;
+            if (currency === 'JPY') amount *= 110;
+            else if (currency === 'EUR') amount *= 0.85;
+            else if (currency === 'GBP') amount *= 0.75;
+            else if (currency === 'CHF') amount *= 0.92;
+            else if (currency === 'AUD') amount *= 1.35;
+            else if (currency === 'CAD') amount *= 1.25;
+            else if (currency === 'SGD') amount *= 1.35;
+            else if (currency === 'HKD') amount *= 7.8;
+            else if (currency === 'CNY') amount *= 6.4;
+            
+            amount = Math.floor(amount);
+
+            const orderingCustomer = orderingCustomers[Math.floor(Math.random() * orderingCustomers.length)];
+            const beneficiaryCustomer = beneficiaryCustomers[Math.floor(Math.random() * beneficiaryCustomers.length)];
+            const intermediaryInstitution = intermediaryInstitutions[Math.floor(Math.random() * intermediaryInstitutions.length)];
+            const remittanceInformation = remittanceInfo[Math.floor(Math.random() * remittanceInfo.length)];
+
+            return new Transaction(
+                origin, 
+                destination, 
+                amount, 
+                risk, 
+                currency,
+                orderingCustomer,
+                beneficiaryCustomer,
+                intermediaryInstitution,
+                remittanceInformation
+            );
+        }
+
+        function addTransactionToLog(transaction) {
+            const log = document.getElementById('transaction-log');
+            const entry = document.createElement('div');
+            entry.className = 'transaction-entry bg-gray-800 rounded-lg p-4 mb-3 border-l-4 border-' + 
+                (transaction.risk === 'high' ? 'red' : transaction.risk === 'medium' ? 'yellow' : 'green') + '-500';
+            
+            // Add click functionality - use event delegation to prevent flickering
+            entry.style.cursor = 'pointer';
+            entry.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showTransactionModal(transaction);
+            }, { once: false });
+            
+            const riskClass = transaction.risk === 'high' ? 'risk-high' : 
+                            transaction.risk === 'medium' ? 'risk-medium' : 'risk-low';
+            
+            const formattedAmount = `${transaction.currency} ${transaction.amount.toLocaleString()}`;
+            
+            // Determine currency color based on RAG status
+            const currencyClass = transaction.risk === 'high' ? 'risk-high' : 
+                                transaction.risk === 'medium' ? 'risk-medium' : 'risk-low';
+            
+            // Format timestamp as CET
+            const cetTime = new Date(transaction.timestamp.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+            const formattedCETTime = cetTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            
+            entry.innerHTML = `
+                <div class="space-y-3 text-xs">
+                    <!-- Header Row -->
+                    <div class="flex justify-between items-start border-b border-gray-700 pb-2">
+                        <div class="flex flex-col space-y-1 min-w-0 flex-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-gray-400 font-mono">CET</span>
+                                <span class="text-gray-400">${formattedCETTime}</span>
+                            </div>
+                            <div class="text-white font-semibold">${transaction.origin} → ${transaction.destination}</div>
+                            <div class="${currencyClass} font-bold">${formattedAmount}</div>
+                        </div>
+                        <div class="${riskClass} font-semibold text-xs px-2 py-1 rounded shrink-0">
+                            ${transaction.risk === 'high' ? 'BLOCKED' : transaction.risk.toUpperCase()}
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Fields Stacked -->
+                    <div class="space-y-2">
+                        <div>
+                            <div class="text-gray-400 text-xs">Settlement Amount:</div>
+                            <div class="text-white font-mono transaction-text">${transaction.currency} ${transaction.amount.toLocaleString()}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="text-gray-400 text-xs">Debtor:</div>
+                            <div class="text-white transaction-text">${transaction.orderingCustomer}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="text-gray-400 text-xs">Creditor:</div>
+                            <div class="text-white transaction-text">${transaction.beneficiaryCustomer}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="text-gray-400 text-xs">Intermediary Agent:</div>
+                            <div class="text-white transaction-text">${transaction.intermediaryInstitution}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="text-gray-400 text-xs">Remittance Information:</div>
+                            <div class="text-white transaction-text">${transaction.remittanceInformation}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="text-gray-400 text-xs">Instruction ID:</div>
+                            <div class="text-gray-300 font-mono transaction-text">${transaction.id.toUpperCase()}</div>
+                        </div>
+                    </div>
+
+                    <!-- Click hint -->
+                    <div class="text-xs text-gray-500 italic pt-2 border-t border-gray-700">
+                        Click for detailed view
+                    </div>
+                </div>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 10 transactions due to vertical stacking
+            while (log.children.length > 10) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function updateMetricCounters() {
+            // Update message counter
+            document.getElementById('messageCounter').textContent = totalTransactions.toLocaleString();
+            
+            // Update total value counter with proper formatting
+            const formattedValue = new Intl.NumberFormat('en-EU', {
+                style: 'currency',
+                currency: 'EUR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(totalPaymentValue);
+            document.getElementById('totalValueCounter').textContent = formattedValue;
+        }
+        
+        function updateScreeningTime() {
+            if (screeningTimes.length === 0) {
+                document.getElementById('screeningTime').textContent = '0ms';
+                return;
+            }
+            
+            // Calculate average screening time
+            const avgTime = screeningTimes.reduce((sum, time) => sum + time, 0) / screeningTimes.length;
+            document.getElementById('screeningTime').textContent = Math.round(avgTime) + 'ms';
+        }
+
+        function updateStatistics() {
+            const now = Date.now();
+            const timeConfig = getTimeUpdateInterval();
+            
+            // Update simulated time based on speed setting
+            if (now - lastTimeUpdate >= timeConfig.interval) {
+                simulatedTime.setSeconds(simulatedTime.getSeconds() + timeConfig.increment);
+                lastTimeUpdate = now;
+            }
+            
+            // Update times in different time zones
+            // CET (Central European Time) - UTC+1 or UTC+2 (daylight saving)
+            const cetTime = new Date(simulatedTime.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+            document.getElementById('simulated-time-cet').textContent = 
+                cetTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            
+            // EST (Eastern Standard Time) - UTC-5 or UTC-4 (daylight saving)
+            const estTime = new Date(simulatedTime.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+            document.getElementById('simulated-time-est').textContent = 
+                estTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            
+            // SGT (Singapore Time) - UTC+8
+            const sgtTime = new Date(simulatedTime.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+            document.getElementById('simulated-time-sgt').textContent = 
+                sgtTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            
+            // Update current date (static)
+            const currentDate = new Date();
+            document.getElementById('current-date').textContent = 
+                currentDate.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: '2-digit' 
+                });
+            
+            // Update counters
+            document.getElementById('total-transactions').textContent = totalTransactions.toLocaleString();
+            document.getElementById('medium-risk-alerts').textContent = mediumRiskAlerts.toLocaleString();
+            document.getElementById('high-risk-alerts').textContent = highRiskAlerts.toLocaleString();
+        }
+
+        function animate() {
+            if (!isSimulationRunning) return;
+
+            const now = Date.now();
+
+            // Clear and redraw world map
+            drawWorldMap();
+
+            // Update and draw active transactions
+            activeTransactions = activeTransactions.filter(transaction => {
+                const isActive = transaction.update();
+                if (isActive) {
+                    transaction.draw();
+                }
+                return isActive;
+            });
+
+            // Generate new transaction based on speed setting
+            const transactionInterval = getTransactionInterval();
+            if (now - lastTransactionTime >= transactionInterval) {
+                const transaction = generateTransaction();
+                activeTransactions.push(transaction);
+                allTransactions.push(transaction); // Store for filtering
+                addTransactionToLog(transaction);
+                
+                totalTransactions++;
+                
+                // Update payment value counter
+                totalPaymentValue += transaction.amount;
+                updateMetricCounters();
+                
+                // Simulate screening time (random between 150-350ms)
+                const screeningTime = Math.floor(Math.random() * 200) + 150;
+                screeningTimes.push(screeningTime);
+                if (screeningTimes.length > 100) {
+                    screeningTimes.shift(); // Keep only last 100
+                }
+                updateScreeningTime();
+                
+                if (transaction.risk === 'high') {
+                    highRiskAlerts++;
+                } else if (transaction.risk === 'medium') {
+                    mediumRiskAlerts++;
+                }
+                
+                // Add transaction to risk filter panel if it's open and matches
+                addTransactionToRiskFilter(transaction);
+                
+                lastTransactionTime = now;
+            }
+
+            updateStatistics();
+            
+            if (isSimulationRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function startSimulation() {
+            if (!animationId && isSimulationRunning) {
+                animate();
+            }
+        }
+
+        function toggleSimulation() {
+            isSimulationRunning = !isSimulationRunning;
+            const btn = document.getElementById('pause-resume-btn');
+            
+            if (isSimulationRunning) {
+                btn.textContent = 'Pause Simulation';
+                btn.className = 'w-full bg-databricks-lava hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded transition-colors';
+                startSimulation();
+            } else {
+                btn.textContent = 'Resume Simulation';
+                btn.className = 'w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors';
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <!-- Navigation Bar -->
+    <div class="demo-nav-bar fixed bottom-0 left-0 right-0 bg-dark-panel border-t border-dark-border backdrop-blur-sm bg-opacity-90 z-50">
+        <div class="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+            <a href="demo-navigation.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-sm font-medium">Overview</span>
+            </a>
+            
+            <div class="flex items-center space-x-1 text-sm text-gray-400">
+                <span>Scene 2</span>
+                <span class="text-gray-600">of</span>
+                <span>5</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="scene1-onboarding.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    <span class="text-sm font-medium">Previous</span>
+                </a>
+                <a href="scene3-ai-monitoring.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-databricks-lava hover:bg-opacity-90 text-white transition-colors">
+                    <span class="text-sm font-medium">Next</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

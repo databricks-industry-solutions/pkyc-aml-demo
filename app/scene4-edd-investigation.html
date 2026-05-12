@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic EDD Investigation</title>
+    <link rel="icon" href="https://www.databricks.com/en-website-assets/favicon-32x32.png?v=c9b9916c3b27dc51866c46b79a6e9b88" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="theme-config.js"></script>
+    <script src="demo-controls.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'databricks-navy': '#0B2026',
+                        'databricks-lava': '#FF3621',
+                        'databricks-oat-medium': '#EEEDE9',
+                        'databricks-oat-light': '#F9F7F4',
+                        'dark-bg': '#0B2026',
+                        'dark-panel': '#0B2026',
+                        'dark-border': 'rgba(238, 237, 233, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B2026;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        code, .font-mono {
+            font-family: 'DM Mono', monospace;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #334155;
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #64748b;
+            border-radius: 3px;
+        }
+
+        .agent-working {
+            animation: agentPulse 2s infinite;
+        }
+
+        @keyframes agentPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(255, 54, 33, 0.4);
+                border-color: #FF3621;
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(255, 54, 33, 0);
+                border-color: #FF5C4D;
+            }
+        }
+
+        .agent-complete {
+            border-color: #10b981 !important;
+            background: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+        }
+
+        .agent-qa {
+            animation: qaCheck 1.5s infinite;
+        }
+
+        @keyframes qaCheck {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+            }
+            50% { 
+                box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-up {
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .progress-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .data-flow {
+            animation: dataFlow 2s ease-in-out infinite;
+        }
+
+        @keyframes dataFlow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .typing-dots span {
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-8px);
+                opacity: 1;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .finding-card {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .finding-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .screen-transition {
+            animation: screenFadeOut 0.4s ease-out forwards;
+        }
+
+        @keyframes screenFadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.95); }
+        }
+
+        .screen-fade-in {
+            animation: screenFadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes screenFadeIn {
+            from { opacity: 0; transform: scale(1.05); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .completion-popup {
+            animation: popupBounce 0.5s ease-out;
+        }
+
+        @keyframes popupBounce {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Permanent Navigation Bar */
+        .demo-nav-bar {
+            opacity: 1;
+            height: 80px;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 h-screen overflow-hidden" style="padding-bottom: 80px;">
+    
+    <!-- Initial Screen: Investigator Workload -->
+    <div id="workloadScreen" class="flex flex-col" style="height: calc(100vh - 80px);">
+        <!-- Header -->
+        <div class="bg-dark-panel border-b border-dark-border p-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <img src="DBLogo.png" alt="DB Logo" class="h-10 object-contain">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Enhanced Due Diligence Queue</h1>
+                        <p class="text-gray-400 text-sm">Investigator: Sarah Chen • Tier 2 Compliance</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workload Queue -->
+        <div class="flex-1 p-8 overflow-y-auto">
+            <div class="max-w-6xl mx-auto">
+                <div class="mb-6 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-2">Pending EDD Cases</h2>
+                        <p class="text-gray-400 text-sm">5 cases assigned • 3 requiring immediate action</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <div class="bg-gray-800 rounded-lg px-4 py-2 border-l-4 border-databricks-lava">
+                            <div class="text-xs text-gray-400">High Priority</div>
+                            <div class="text-lg font-bold text-red-400">3</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg px-4 py-2 border-l-4 border-yellow-500">
+                            <div class="text-xs text-gray-400">Medium</div>
+                            <div class="text-lg font-bold text-yellow-400">2</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Case Cards -->
+                <div class="space-y-4">
+                    <!-- Dirk van Dijk - Highlighted -->
+                    <div class="bg-red-900 bg-opacity-30 border-2 border-databricks-lava rounded-lg p-6 agent-working">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-3 mb-3">
+                                    <span class="bg-databricks-lava text-white text-xs px-3 py-1 rounded-full font-bold">HIGH PRIORITY</span>
+                                    <span class="text-gray-400 text-sm">Case #271</span>
+                                    <span class="bg-red-800 text-red-200 text-xs px-2 py-1 rounded">RC-ML-034</span>
+                                    <span class="text-gray-400 text-sm">•</span>
+                                    <span class="text-gray-400 text-sm">Escalated 15 min ago</span>
+                                </div>
+                                <h3 class="text-xl font-bold text-white mb-2">Dirk van Dijk</h3>
+                                <div class="grid grid-cols-3 gap-4 mb-4">
+                                    <div>
+                                        <div class="text-xs text-gray-400">Customer ID</div>
+                                        <div class="text-sm text-white font-mono">CUST-NL-7821</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-400">Account Type</div>
+                                        <div class="text-sm text-white">SME Business</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-400">Onboarding Date</div>
+                                        <div class="text-sm text-white">2025-10-22</div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-900 rounded p-3 mb-3">
+                                    <p class="text-sm text-gray-300"><strong class="text-red-400">Typology:</strong> Transaction Structuring</p>
+                                    <p class="text-sm text-gray-300 mt-1"><strong class="text-red-400">ML Risk Score:</strong> 0.92 (High Confidence)</p>
+                                    <p class="text-sm text-gray-300 mt-1"><strong class="text-red-400">Pattern:</strong> 6 transactions totaling €56,700 just below €10K reporting threshold over 6 consecutive days</p>
+                                </div>
+                                <div class="flex items-center space-x-2 text-xs text-gray-400">
+                                    <svg class="w-4 h-4 text-databricks-lava" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span>Originally onboarded as LOW risk • Recent behavioral change detected</span>
+                                </div>
+                            </div>
+                            <div class="ml-6">
+                                <button onclick="startEDDInvestigation()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center space-x-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                    <span>Initiate EDD</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other cases (greyed out) -->
+                    <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 opacity-50">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span class="bg-yellow-600 text-white text-xs px-2 py-1 rounded">REVIEW</span>
+                                    <span class="text-gray-400 text-sm">Case #268</span>
+                                </div>
+                                <h3 class="text-base font-semibold text-white">L*** v** d** B***</h3>
+                                <p class="text-sm text-gray-400 mt-1">PEP Association • Requires source of wealth verification</p>
+                            </div>
+                            <button class="bg-gray-700 text-white py-2 px-4 rounded" disabled>Pending</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 opacity-50">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span class="bg-red-600 text-white text-xs px-2 py-1 rounded">HIGH</span>
+                                    <span class="text-gray-400 text-sm">Case #265</span>
+                                    <span class="bg-red-800 text-red-200 text-xs px-2 py-1 rounded">RC-VT-018</span>
+                                </div>
+                                <h3 class="text-base font-semibold text-white">M***** K*******</h3>
+                                <p class="text-sm text-gray-400 mt-1">Cross-border suspicious activity • High velocity transactions</p>
+                            </div>
+                            <button class="bg-gray-700 text-white py-2 px-4 rounded" disabled>Pending</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investigation Screen: Agentic Workflow -->
+    <div id="investigationScreen" class="flex-col hidden" style="height: calc(100vh - 80px);">
+        <!-- Header with Timer -->
+        <div class="bg-dark-panel border-b border-dark-border p-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <img src="DBLogo.png" alt="DB Logo" class="h-10 object-contain">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Agentic EDD Investigation</h1>
+                        <p class="text-gray-400 text-sm">Customer: <span class="text-white font-semibold">Dirk van Dijk</span> • Case ID: EDD-2025-271</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-gradient-to-br from-databricks-navy/40 to-databricks-navy/50 border border-databricks-lava/30 rounded-lg px-6 py-3">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-databricks-lava" id="timerDisplay">0:00</div>
+                            <div class="text-xs text-gray-400 mt-1">Elapsed Time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Left: Agent Workflow -->
+            <div class="w-1/2 border-r border-dark-border flex flex-col">
+                <div class="p-6 border-b border-dark-border">
+                    <h2 class="text-xl font-bold text-white mb-2">Agent Workflow</h2>
+                    <p class="text-gray-400 text-sm">Autonomous investigation agents with maker/checker validation</p>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4" id="agentWorkflow" style="max-height: calc(100vh - 250px);">
+                    <!-- Agents will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Right: Investigation Timeline & Activity -->
+            <div class="w-1/2 flex flex-col">
+                <div class="p-6 border-b border-dark-border">
+                    <h2 class="text-xl font-bold text-white mb-2">Investigation Activity Log</h2>
+                    <p class="text-gray-400 text-sm">Real-time agent discoveries and data collection</p>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-3" id="activityLog">
+                    <!-- Activity will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="resultsScreen" class="flex-col hidden" style="height: calc(100vh - 80px);">
+        <!-- Header -->
+        <div class="bg-dark-panel border-b border-dark-border p-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <img src="DBLogo.png" alt="DB Logo" class="h-10 object-contain">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">EDD Investigation Complete</h1>
+                        <p class="text-gray-400 text-sm">Customer: <span class="text-white font-semibold">Dirk van Dijk</span> • Case ID: EDD-2025-271</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-gradient-to-br from-green-900/40 to-blue-900/40 border border-green-500/30 rounded-lg px-6 py-3">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-green-400" id="finalTimerDisplay">0:00</div>
+                            <div class="text-xs text-gray-400 mt-1">Total Investigation Time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Left: Investigation Summary -->
+            <div class="w-1/2 border-r border-dark-border overflow-y-auto scrollbar-thin p-6" style="max-height: calc(100vh - 200px);">
+                <div class="space-y-6">
+                    <!-- Risk Assessment -->
+                    <div class="bg-red-900 bg-opacity-30 border-2 border-databricks-lava rounded-lg p-6">
+                        <div class="flex items-center space-x-3 mb-4">
+                            <svg class="w-8 h-8 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <h2 class="text-2xl font-bold text-red-300">HIGH RISK - Immediate Action Required</h2>
+                        </div>
+                        <p class="text-gray-300 text-sm mb-4">
+                            Investigation has uncovered multiple high-severity findings requiring immediate escalation to MLRO and potential SAR filing.
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gray-900 rounded p-3">
+                                <div class="text-xs text-gray-400">Risk Level Change</div>
+                                <div class="text-lg font-bold">
+                                    <span class="text-green-400">LOW</span>
+                                    <span class="text-gray-400 mx-2">→</span>
+                                    <span class="text-red-400">HIGH</span>
+                                </div>
+                            </div>
+                            <div class="bg-gray-900 rounded p-3">
+                                <div class="text-xs text-gray-400">Critical Findings</div>
+                                <div class="text-lg font-bold text-red-400">4</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Key Findings -->
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-4">Critical Findings</h3>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4 finding-card" onclick="openFindingModal(1)">
+                                <div class="flex items-start space-x-3">
+                                    <span class="bg-databricks-lava text-white text-xs px-2 py-1 rounded font-bold">1</span>
+                                    <div class="flex-1">
+                                        <p class="text-white font-semibold mb-1">Beneficial Ownership in Sanctioned Entities</p>
+                                        <p class="text-sm text-gray-300">Subject has indirect beneficial ownership in Maritime Holdings BV, a company sanctioned by EU/US for operating shadow fleet vessels involved in sanctions evasion.</p>
+                                        <div class="mt-2 text-xs text-gray-400">
+                                            <strong>Source:</strong> Panama Papers (2016) • EU Sanctions List • Corporate Registry Cross-reference
+                                        </div>
+                                        <div class="mt-2 text-xs text-databricks-lava flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Click for detailed analysis
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4 finding-card" onclick="openFindingModal(2)">
+                                <div class="flex items-start space-x-3">
+                                    <span class="bg-databricks-lava text-white text-xs px-2 py-1 rounded font-bold">2</span>
+                                    <div class="flex-1">
+                                        <p class="text-white font-semibold mb-1">Layered Offshore Structure</p>
+                                        <p class="text-sm text-gray-300">Complex ownership through 3 shell companies (NL, Cayman Islands, Panama) designed to obscure beneficial ownership and facilitate illicit fund flows.</p>
+                                        <div class="mt-2 text-xs text-gray-400">
+                                            <strong>Source:</strong> Corporate registration documents • Partnership agreements • Independent verification
+                                        </div>
+                                        <div class="mt-2 text-xs text-databricks-lava flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Click for detailed analysis
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4 finding-card" onclick="openFindingModal(3)">
+                                <div class="flex items-start space-x-3">
+                                    <span class="bg-databricks-lava text-white text-xs px-2 py-1 rounded font-bold">3</span>
+                                    <div class="flex-1">
+                                        <p class="text-white font-semibold mb-1">Source of Funds Inconsistency</p>
+                                        <p class="text-sm text-gray-300">Declared SME business income (€120K annual) inconsistent with €56,700 in rapid transfers. No supporting business documentation or legitimate economic purpose identified.</p>
+                                        <div class="mt-2 text-xs text-gray-400">
+                                            <strong>Source:</strong> Wire instructions/receipts • Tax returns verification • Financial statements analysis
+                                        </div>
+                                        <div class="mt-2 text-xs text-databricks-lava flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Click for detailed analysis
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4 finding-card" onclick="openFindingModal(4)">
+                                <div class="flex items-start space-x-3">
+                                    <span class="bg-databricks-lava text-white text-xs px-2 py-1 rounded font-bold">4</span>
+                                    <div class="flex-1">
+                                        <p class="text-white font-semibold mb-1">Adverse Media - Sanctions Evasion</p>
+                                        <p class="text-sm text-gray-300">Subject's alias "D. van Dyke" mentioned in 3 investigative journalism reports related to shadow fleet operations and Russian oil transportation schemes (2022-2024).</p>
+                                        <div class="mt-2 text-xs text-gray-400">
+                                            <strong>Source:</strong> Deep web searches • Translation services • Investigative reports verification
+                                        </div>
+                                        <div class="mt-2 text-xs text-databricks-lava flex items-center">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Click for detailed analysis
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agent Performance Summary -->
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-4">Agent Performance Summary</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded p-3">
+                                <div class="text-xs text-gray-400">Agents Deployed</div>
+                                <div class="text-2xl font-bold text-white">12</div>
+                                <div class="text-xs text-gray-500 mt-1">6 Investigators + 6 QA</div>
+                            </div>
+                            <div class="bg-green-900 bg-opacity-30 border border-green-700 rounded p-3">
+                                <div class="text-xs text-gray-400">Data Sources Queried</div>
+                                <div class="text-2xl font-bold text-white">47</div>
+                                <div class="text-xs text-gray-500 mt-1">Across 12 jurisdictions</div>
+                            </div>
+                            <div class="bg-purple-900 bg-opacity-30 border border-purple-700 rounded p-3">
+                                <div class="text-xs text-gray-400">Documents Verified</div>
+                                <div class="text-2xl font-bold text-white">23</div>
+                                <div class="text-xs text-gray-500 mt-1">100% QA validation</div>
+                            </div>
+                            <div class="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded p-3">
+                                <div class="text-xs text-gray-400">Entities Identified</div>
+                                <div class="text-2xl font-bold text-white">8</div>
+                                <div class="text-xs text-gray-500 mt-1">3 sanctioned</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right: Network Visualization and Actions -->
+            <div class="w-1/2 flex flex-col overflow-y-auto scrollbar-thin p-6" style="max-height: calc(100vh - 200px);">
+                <h3 class="text-lg font-bold text-white mb-4">Activity and Relationship Network</h3>
+                <div class="bg-gray-900 rounded-lg border border-gray-700 p-6">
+                    <svg class="w-full h-[600px]" viewBox="0 0 600 600">
+                        <!-- Define markers for arrowheads -->
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <polygon points="0 0, 10 3, 0 6" fill="#64748b" />
+                            </marker>
+                        </defs>
+
+                        <!-- Connections -->
+                        <line x1="300" y1="80" x2="200" y2="180" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+                        <line x1="300" y1="80" x2="300" y2="180" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+                        <line x1="300" y1="80" x2="400" y2="180" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+                        
+                        <line x1="200" y1="220" x2="150" y2="340" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead)" />
+                        <line x1="300" y1="220" x2="280" y2="340" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead)" />
+                        <line x1="400" y1="220" x2="400" y2="340" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead)" />
+                        <line x1="400" y1="380" x2="480" y2="480" stroke="#dc2626" stroke-width="4" stroke-dasharray="5,5" />
+
+                        <!-- Central Node: Dirk van Dijk -->
+                        <g>
+                            <circle cx="300" cy="80" r="45" fill="#FF3621" stroke="#FF5C4D" stroke-width="3"/>
+                            <text x="300" y="75" text-anchor="middle" fill="white" font-size="13" font-weight="bold">Dirk van Dijk</text>
+                            <text x="300" y="90" text-anchor="middle" fill="#dbeafe" font-size="10">(Subject)</text>
+                        </g>
+
+                        <!-- Alias Nodes -->
+                        <g>
+                            <circle cx="200" cy="200" r="35" fill="#f59e0b" stroke="#fbbf24" stroke-width="2"/>
+                            <text x="200" y="198" text-anchor="middle" fill="white" font-size="11" font-weight="bold">D. van Dyke</text>
+                            <text x="200" y="210" text-anchor="middle" fill="#fef3c7" font-size="9">(Alias)</text>
+                        </g>
+
+                        <g>
+                            <circle cx="300" cy="200" r="35" fill="#f59e0b" stroke="#fbbf24" stroke-width="2"/>
+                            <text x="300" y="198" text-anchor="middle" fill="white" font-size="11" font-weight="bold">D. Dijk</text>
+                            <text x="300" y="210" text-anchor="middle" fill="#fef3c7" font-size="9">(Alias)</text>
+                        </g>
+
+                        <g>
+                            <circle cx="400" cy="200" r="35" fill="#f59e0b" stroke="#fbbf24" stroke-width="2"/>
+                            <text x="400" y="198" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Dirk v.D.</text>
+                            <text x="400" y="210" text-anchor="middle" fill="#fef3c7" font-size="9">(Alias)</text>
+                        </g>
+
+                        <!-- Shell Company Nodes (Sanctioned) -->
+                        <g>
+                            <rect x="75" y="330" width="150" height="60" rx="6" fill="#7f1d1d" stroke="#ef4444" stroke-width="3"/>
+                            <text x="150" y="352" text-anchor="middle" fill="#fecaca" font-size="10" font-weight="bold">Maritime Holdings BV</text>
+                            <text x="150" y="365" text-anchor="middle" fill="#fca5a5" font-size="8">(Netherlands)</text>
+                            <text x="150" y="378" text-anchor="middle" fill="#dc2626" font-size="9" font-weight="bold">⚠ SANCTIONED</text>
+                        </g>
+
+                        <g>
+                            <rect x="205" y="330" width="150" height="60" rx="6" fill="#7f1d1d" stroke="#ef4444" stroke-width="3"/>
+                            <text x="280" y="352" text-anchor="middle" fill="#fecaca" font-size="10" font-weight="bold">Nautical Ventures Ltd</text>
+                            <text x="280" y="365" text-anchor="middle" fill="#fca5a5" font-size="8">(Cayman Islands)</text>
+                            <text x="280" y="378" text-anchor="middle" fill="#dc2626" font-size="9" font-weight="bold">⚠ SANCTIONED</text>
+                        </g>
+
+                        <g>
+                            <rect x="325" y="330" width="150" height="60" rx="6" fill="#7f1d1d" stroke="#ef4444" stroke-width="3"/>
+                            <text x="400" y="352" text-anchor="middle" fill="#fecaca" font-size="10" font-weight="bold">Ocean Logistics SA</text>
+                            <text x="400" y="365" text-anchor="middle" fill="#fca5a5" font-size="8">(Panama)</text>
+                            <text x="400" y="378" text-anchor="middle" fill="#dc2626" font-size="9" font-weight="bold">⚠ SANCTIONED</text>
+                        </g>
+
+                        <!-- Shadow Fleet Node -->
+                        <g>
+                            <rect x="410" y="460" width="160" height="70" rx="6" fill="#450a0a" stroke="#dc2626" stroke-width="4" stroke-dasharray="5,5"/>
+                            <text x="490" y="483" text-anchor="middle" fill="#fee2e2" font-size="12" font-weight="bold">Shadow Fleet</text>
+                            <text x="490" y="498" text-anchor="middle" fill="#fca5a5" font-size="9">4 Tanker Vessels</text>
+                            <text x="490" y="513" text-anchor="middle" fill="#dc2626" font-size="10" font-weight="bold">🚨 EU/US SANCTIONS</text>
+                        </g>
+
+                        <!-- Legend -->
+                        <g transform="translate(20, 480)">
+                            <rect x="0" y="0" width="160" height="85" fill="#1e293b" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="10" y="18" fill="white" font-size="10" font-weight="bold">Legend</text>
+                            <circle cx="18" cy="33" r="6" fill="#FF3621"/>
+                            <text x="30" y="37" fill="#d1d5db" font-size="9">Subject Person</text>
+                            <circle cx="18" cy="50" r="6" fill="#f59e0b"/>
+                            <text x="30" y="54" fill="#d1d5db" font-size="9">Known Alias</text>
+                            <rect x="12" y="60" width="12" height="10" fill="#7f1d1d" stroke="#ef4444" stroke-width="1"/>
+                            <text x="30" y="68" fill="#d1d5db" font-size="9">Sanctioned Entity</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-6 space-y-3">
+                    <button onclick="navigateToScene5()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <span>Escalate to MLRO & File SAR</span>
+                    </button>
+                    <button onclick="openReportEditor()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>View Report</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Editor Modal -->
+    <div id="reportEditorModal" class="modal">
+        <div class="modal-content w-full max-w-5xl" style="max-height: 90vh;">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between bg-dark-panel sticky top-0 z-10">
+                <h3 class="text-xl font-bold text-white">Investigation Report - Editable View</h3>
+                <button onclick="closeReportEditor()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 80px);">
+                <div class="bg-white text-gray-900 rounded-lg p-8 shadow-2xl">
+                    <!-- SAR Header -->
+                    <div class="border-b-2 border-gray-300 pb-4 mb-6">
+                        <h1 class="text-2xl font-bold text-gray-900 mb-2">SUSPICIOUS ACTIVITY REPORT</h1>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-600">Report ID:</p>
+                                <p class="font-mono font-bold">SAR-2025-10-271</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Date Filed:</p>
+                                <p class="font-bold">29 October 2025</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Reporting Institution:</p>
+                                <p class="font-bold">[Bank Name]</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Case ID:</p>
+                                <p class="font-mono font-bold">EDD-2025-271</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subject Information -->
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3">I. SUBJECT INFORMATION</h2>
+                        <div class="bg-gray-50 rounded p-4 text-sm space-y-2">
+                            <p><strong>Name:</strong> Dirk van Dijk</p>
+                            <p><strong>Date of Birth:</strong> 24 March 1980</p>
+                            <p><strong>Known Aliases:</strong> D. van Dyke, D. Dijk, Dirk v.D.</p>
+                            <p><strong>Customer Since:</strong> 22 October 2025</p>
+                        </div>
+                    </div>
+
+                    <!-- Suspicious Activity Description -->
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3">II. SUSPICIOUS ACTIVITY DESCRIPTION</h2>
+                        <div contenteditable="true" class="text-sm space-y-3 border border-gray-300 rounded p-4 focus:border-blue-500 focus:outline-none">
+                            <p class="text-justify">
+                                This report concerns a pattern of suspicious financial transactions identified through advanced AI-powered transaction monitoring systems. The subject, Dirk van Dijk, exhibited behavior consistent with <strong>structuring</strong> (also known as smurfing), designed to evade regulatory reporting thresholds.
+                            </p>
+                            <p class="text-justify">
+                                Between 24 October 2025 and 29 October 2025, the subject executed <strong>six (6) deposit transactions</strong> ranging from EUR 9,000 to EUR 9,800, each deliberately positioned just below the EUR 10,000 regulatory reporting threshold. This pattern was flagged by our AI monitoring system with a risk score of 0.92 (critical).
+                            </p>
+                            <p class="text-justify">
+                                Subsequent Enhanced Due Diligence (EDD) investigation revealed significantly more concerning findings:
+                            </p>
+                            <ul class="list-disc ml-6 space-y-1">
+                                <li>Subject operates under multiple aliases, as evidenced by matches in the Panama Papers database (2016 leak)</li>
+                                <li>Beneficial ownership in three (3) offshore shell companies: Maritime Holdings BV (Netherlands), Nautical Ventures Ltd (Cayman Islands), and Ocean Logistics SA (Panama)</li>
+                                <li><strong>Critical Finding:</strong> These shell companies own four (4) tanker vessels identified on the EU and US sanctioned "shadow fleet" list for sanctions violations</li>
+                                <li>The subject's transaction patterns and ownership structures indicate deliberate efforts to conceal the ultimate beneficial ownership and source of funds</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Supporting Evidence -->
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3">III. SUPPORTING EVIDENCE</h2>
+                        <div contenteditable="true" class="bg-gray-50 rounded p-4 text-sm space-y-2 border border-gray-300 focus:border-blue-500 focus:outline-none">
+                            <p>• Transaction records (6 deposits totaling EUR 56,700)</p>
+                            <p>• AI risk assessment model output (AUC: 97.3%)</p>
+                            <p>• SHAP explainability analysis showing key risk factors</p>
+                            <p>• Panama Papers database match (94.7% confidence)</p>
+                            <p>• Corporate registry searches (3 offshore entities)</p>
+                            <p>• EU and OFAC sanctions list verification</p>
+                            <p>• Complete Unity Catalog audit trail (47 data access events)</p>
+                        </div>
+                    </div>
+
+                    <!-- Recommendation -->
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3">IV. RECOMMENDATION</h2>
+                        <div contenteditable="true" class="bg-red-50 border-l-4 border-databricks-lava p-4 text-sm border border-red-200 focus:border-red-600 focus:outline-none">
+                            <p class="text-justify">
+                                Given the critical nature of these findings, particularly the connection to sanctioned entities, we recommend <strong>immediate account freeze</strong> and <strong>notification to relevant authorities</strong> including financial intelligence units and sanctions enforcement agencies. The subject's activities pose significant reputational and regulatory risk to the institution.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Signature Block -->
+                    <div class="mt-8 pt-6 border-t-2 border-gray-300">
+                        <div class="grid grid-cols-1 gap-8">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-2">Prepared by:</p>
+                                <p class="font-bold">John Martinez</p>
+                                <p class="text-sm text-gray-600">Investigator (Tier 1)</p>
+                                <div class="mt-4 pt-2 border-b-2 border-gray-400 text-right flex items-center justify-between">
+                                    <span class="text-green-600 text-sm flex items-center">
+                                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Signed
+                                    </span>
+                                    <span class="text-gray-600 italic text-xs">J. Martinez</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-6 text-center italic">
+                            This report was generated with assistance from AI systems. All findings have been reviewed and verified by qualified compliance personnel.
+                        </p>
+                        <p class="text-xs text-blue-600 mt-4 text-center font-semibold">
+                            Note: This is an editable preview. The MLRO signature will be added upon final approval and submission.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-dark-border bg-dark-panel sticky bottom-0">
+                <div class="flex space-x-3">
+                    <button onclick="closeReportEditor()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors">
+                        Close
+                    </button>
+                    <button onclick="closeReportEditor()" class="flex-1 bg-databricks-lava hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded transition-colors">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investigation Complete Popup -->
+    <div id="completionModal" class="modal">
+        <div class="modal-content w-full max-w-2xl completion-popup">
+            <div class="p-8 text-center">
+                <!-- Success Icon -->
+                <div class="flex justify-center mb-6">
+                    <div class="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center">
+                        <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Title -->
+                <h2 class="text-3xl font-bold text-white mb-4">Investigation Complete</h2>
+                
+                <!-- Summary Stats -->
+                <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                    <div class="grid grid-cols-3 gap-6 mb-4">
+                        <div>
+                            <div class="text-gray-400 text-sm mb-1">Investigation Time</div>
+                            <div class="text-2xl font-bold text-databricks-lava" id="completionTime">0:00</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400 text-sm mb-1">Agents Deployed</div>
+                            <div class="text-2xl font-bold text-white">12</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400 text-sm mb-1">Critical Findings</div>
+                            <div class="text-2xl font-bold text-red-400">4</div>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-700 pt-4">
+                        <div class="flex items-center justify-center space-x-2 text-green-400">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-semibold">All agents completed successfully</span>
+                        </div>
+                        <div class="flex items-center justify-center space-x-2 text-green-400 mt-2">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="font-semibold">100% QA validation rate</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Status -->
+                <div class="bg-red-900 bg-opacity-30 border-2 border-databricks-lava rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-center space-x-3">
+                        <svg class="w-6 h-6 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-red-300 font-bold text-lg">HIGH RISK - Immediate Action Required</p>
+                            <p class="text-gray-400 text-sm">Multiple critical findings require MLRO escalation</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button onclick="showResults()" class="bg-databricks-lava hover:bg-opacity-90 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-3 mx-auto">
+                    <span>View Full Investigation Report</span>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finding Detail Modals -->
+    <!-- Modal 1: Beneficial Ownership -->
+    <div id="findingModal1" class="modal">
+        <div class="modal-content w-full">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-red-400">Finding #1: Beneficial Ownership in Sanctioned Entities</h3>
+                <button onclick="closeFindingModal(1)" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" style="max-height: 75vh; overflow-y: auto;">
+                <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4">
+                    <h4 class="text-red-300 font-semibold mb-2 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        Critical Sanctions Violation Risk
+                    </h4>
+                    <p class="text-gray-300 text-sm">
+                        Subject Dirk van Dijk has been identified as having indirect beneficial ownership in <strong>Maritime Holdings BV</strong>, a Netherlands-registered company that appears on both EU and US sanctions lists for operating vessels involved in sanctions evasion activities.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Ownership Chain Analysis</h4>
+                    <div class="bg-gray-900 rounded-lg p-4">
+                        <div class="space-y-4">
+                            <div class="flex items-center">
+                                <div class="bg-databricks-lava rounded px-3 py-2 text-white text-sm font-semibold">Dirk van Dijk</div>
+                                <div class="flex-1 border-t-2 border-gray-600 mx-2"></div>
+                                <div class="text-gray-400 text-xs">45% via</div>
+                            </div>
+                            <div class="flex items-center pl-8">
+                                <div class="bg-yellow-600 rounded px-3 py-2 text-white text-sm">D. van Dyke (Alias)</div>
+                                <div class="flex-1 border-t-2 border-gray-600 mx-2"></div>
+                                <div class="text-gray-400 text-xs">owns</div>
+                            </div>
+                            <div class="flex items-center pl-16">
+                                <div class="bg-red-700 rounded px-3 py-2 text-white text-sm font-semibold">Maritime Holdings BV</div>
+                                <div class="ml-3 bg-databricks-lava text-white text-xs px-2 py-1 rounded">SANCTIONED</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Sanctioned Vessel Fleet</h4>
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <p class="text-gray-300 text-sm mb-3">Maritime Holdings BV owns and operates 4 tanker vessels flagged by international authorities:</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-red-900 bg-opacity-30 border border-red-700 rounded p-3">
+                                <div class="text-white font-semibold">MV Aurora</div>
+                                <div class="text-xs text-gray-400 mt-1">IMO: 9234561 • Flag: Panama</div>
+                                <div class="text-xs text-red-400 mt-1">⚠️ EU Sanctions List (2023)</div>
+                            </div>
+                            <div class="bg-red-900 bg-opacity-30 border border-red-700 rounded p-3">
+                                <div class="text-white font-semibold">MV Baltic Star</div>
+                                <div class="text-xs text-gray-400 mt-1">IMO: 9234562 • Flag: Liberia</div>
+                                <div class="text-xs text-red-400 mt-1">⚠️ OFAC SDN List (2023)</div>
+                            </div>
+                            <div class="bg-red-900 bg-opacity-30 border border-red-700 rounded p-3">
+                                <div class="text-white font-semibold">MV Caspian Trader</div>
+                                <div class="text-xs text-gray-400 mt-1">IMO: 9234563 • Flag: Malta</div>
+                                <div class="text-xs text-red-400 mt-1">⚠️ EU/UK Sanctions (2024)</div>
+                            </div>
+                            <div class="bg-red-900 bg-opacity-30 border border-red-700 rounded p-3">
+                                <div class="text-white font-semibold">MV Delta Wave</div>
+                                <div class="text-xs text-gray-400 mt-1">IMO: 9234564 • Flag: Marshall Is.</div>
+                                <div class="text-xs text-red-400 mt-1">⚠️ US Treasury OFAC (2024)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Data Sources & Verification</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300"><strong>Panama Papers Database (2016):</strong> Original leak identifying "D. van Dyke" ownership</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300"><strong>EU Consolidated Sanctions List:</strong> Maritime Holdings BV added March 2023</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300"><strong>OFAC SDN List:</strong> Shadow fleet designation added June 2023</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300"><strong>Netherlands Commercial Registry:</strong> Corporate structure cross-verified October 2025</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                    <h4 class="text-yellow-300 font-semibold mb-2">Regulatory Implication</h4>
+                    <p class="text-gray-300 text-sm">
+                        Under EU Regulation 2024/833 and US Executive Order 14024, financial institutions are prohibited from conducting transactions with or on behalf of sanctioned entities. This relationship creates immediate compliance violations and requires SAR filing with national FIU and potential account suspension.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Layered Offshore Structure -->
+    <div id="findingModal2" class="modal">
+        <div class="modal-content w-full">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-red-400">Finding #2: Layered Offshore Structure</h3>
+                <button onclick="closeFindingModal(2)" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" style="max-height: 75vh; overflow-y: auto;">
+                <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4">
+                    <h4 class="text-red-300 font-semibold mb-2">Complex Beneficial Ownership Obfuscation</h4>
+                    <p class="text-gray-300 text-sm">
+                        Subject utilizes a sophisticated multi-jurisdictional corporate structure spanning 3 offshore jurisdictions (Netherlands, Cayman Islands, Panama) designed to obscure beneficial ownership and complicate regulatory oversight.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Corporate Structure Diagram</h4>
+                    <div class="bg-gray-900 rounded-lg p-6">
+                        <svg class="w-full h-80" viewBox="0 0 500 350">
+                            <!-- Dirk van Dijk -->
+                            <g>
+                                <rect x="175" y="10" width="150" height="50" rx="6" fill="#FF3621" stroke="#FF5C4D" stroke-width="2"/>
+                                <text x="250" y="35" text-anchor="middle" fill="white" font-size="14" font-weight="bold">Dirk van Dijk</text>
+                                <text x="250" y="48" text-anchor="middle" fill="#dbeafe" font-size="10">(Subject)</text>
+                            </g>
+
+                            <!-- Layer 1: Shell Companies -->
+                            <line x1="250" y1="60" x2="120" y2="110" stroke="#64748b" stroke-width="2"/>
+                            <line x1="250" y1="60" x2="250" y2="110" stroke="#64748b" stroke-width="2"/>
+                            <line x1="250" y1="60" x2="380" y2="110" stroke="#64748b" stroke-width="2"/>
+
+                            <g>
+                                <rect x="20" y="110" width="200" height="60" rx="6" fill="#7f1d1d" stroke="#ef4444" stroke-width="2"/>
+                                <text x="120" y="132" text-anchor="middle" fill="#fecaca" font-size="12" font-weight="bold">Maritime Holdings BV</text>
+                                <text x="120" y="147" text-anchor="middle" fill="#fca5a5" font-size="9">Netherlands (45% ownership)</text>
+                                <text x="120" y="161" text-anchor="middle" fill="#dc2626" font-size="9">⚠️ SANCTIONED</text>
+                            </g>
+
+                            <g>
+                                <rect x="150" y="110" width="200" height="60" rx="6" fill="#7f1d1d" stroke="#ef4444" stroke-width="2"/>
+                                <text x="250" y="132" text-anchor="middle" fill="#fecaca" font-size="12" font-weight="bold">Nautical Ventures Ltd</text>
+                                <text x="250" y="147" text-anchor="middle" fill="#fca5a5" font-size="9">Cayman Islands (32% ownership)</text>
+                                <text x="250" y="161" text-anchor="middle" fill="#dc2626" font-size="9">⚠️ SANCTIONED</text>
+                            </g>
+
+                            <g>
+                                <rect x="280" y="110" width="200" height="60" rx="6" fill="#7f1d1d" stroke="#ef4444" stroke-width="2"/>
+                                <text x="380" y="132" text-anchor="middle" fill="#fecaca" font-size="12" font-weight="bold">Ocean Logistics SA</text>
+                                <text x="380" y="147" text-anchor="middle" fill="#fca5a5" font-size="9">Panama (28% ownership)</text>
+                                <text x="380" y="161" text-anchor="middle" fill="#dc2626" font-size="9">⚠️ SANCTIONED</text>
+                            </g>
+
+                            <!-- Layer 2: Subsidiaries -->
+                            <line x1="120" y1="170" x2="100" y2="230" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="120" y1="170" x2="140" y2="230" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="250" y1="170" x2="220" y2="230" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="250" y1="170" x2="280" y2="230" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="380" y1="170" x2="360" y2="230" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="380" y1="170" x2="400" y2="230" stroke="#ef4444" stroke-width="2"/>
+
+                            <text x="100" y="250" text-anchor="middle" fill="#fca5a5" font-size="10">Vessel 1</text>
+                            <text x="140" y="250" text-anchor="middle" fill="#fca5a5" font-size="10">Vessel 2</text>
+                            <text x="220" y="250" text-anchor="middle" fill="#fca5a5" font-size="10">Trading Co.</text>
+                            <text x="280" y="250" text-anchor="middle" fill="#fca5a5" font-size="10">Holding Co.</text>
+                            <text x="360" y="250" text-anchor="middle" fill="#fca5a5" font-size="10">Vessel 3</text>
+                            <text x="400" y="250" text-anchor="middle" fill="#fca5a5" font-size="10">Vessel 4</text>
+
+                            <!-- Annotations -->
+                            <text x="250" y="300" text-anchor="middle" fill="#FF5C4D" font-size="11" font-weight="bold">3 Jurisdictions • 6+ Entities • 4 Sanctioned Vessels</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Red Flag Indicators</h4>
+                    <div class="space-y-3">
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-3">
+                            <p class="text-white font-semibold text-sm">Jurisdictional Arbitrage</p>
+                            <p class="text-gray-400 text-xs mt-1">Use of secrecy jurisdictions (Cayman Islands, Panama) with limited beneficial ownership transparency requirements</p>
+                        </div>
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-3">
+                            <p class="text-white font-semibold text-sm">No Legitimate Business Purpose</p>
+                            <p class="text-gray-400 text-xs mt-1">Complex structure provides no tax efficiency or operational benefit other than obscuring ownership</p>
+                        </div>
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-3">
+                            <p class="text-white font-semibold text-sm">Nominee Directors</p>
+                            <p class="text-gray-400 text-xs mt-1">Use of professional nominee directors in all 3 companies, typical of money laundering structures</p>
+                        </div>
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-3">
+                            <p class="text-white font-semibold text-sm">Circular Ownership</p>
+                            <p class="text-gray-400 text-xs mt-1">Companies hold cross-ownership stakes, further obscuring ultimate beneficial owner</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4">
+                    <h4 class="text-blue-300 font-semibold mb-2">FATF Guidance</h4>
+                    <p class="text-gray-300 text-sm">
+                        Per FATF Recommendation 24, complex ownership structures using multiple jurisdictions without clear economic rationale are a key ML/TF red flag. Financial institutions must identify and verify beneficial owners and understand the purpose and nature of business relationships.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Source of Funds Inconsistency -->
+    <div id="findingModal3" class="modal">
+        <div class="modal-content w-full">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-red-400">Finding #3: Source of Funds Inconsistency</h3>
+                <button onclick="closeFindingModal(3)" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" style="max-height: 75vh; overflow-y: auto;">
+                <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4">
+                    <h4 class="text-red-300 font-semibold mb-2">Significant Income/Activity Mismatch</h4>
+                    <p class="text-gray-300 text-sm">
+                        Subject's declared SME business income (€120,000 annually) is fundamentally inconsistent with the €56,700 in wire transfers executed over 6 consecutive days, representing 47% of annual income transferred in less than a week.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Income vs. Transaction Analysis</h4>
+                    <div class="bg-gray-900 rounded-lg p-6">
+                        <svg class="w-full h-64" viewBox="0 0 600 250">
+                            <!-- Y-axis -->
+                            <line x1="50" y1="20" x2="50" y2="200" stroke="#64748b" stroke-width="2"/>
+                            <!-- X-axis -->
+                            <line x1="50" y1="200" x2="550" y2="200" stroke="#64748b" stroke-width="2"/>
+
+                            <!-- Y-axis labels -->
+                            <text x="35" y="25" text-anchor="end" fill="#9ca3af" font-size="11">€140K</text>
+                            <text x="35" y="70" text-anchor="end" fill="#9ca3af" font-size="11">€120K</text>
+                            <text x="35" y="115" text-anchor="end" fill="#9ca3af" font-size="11">€80K</text>
+                            <text x="35" y="160" text-anchor="end" fill="#9ca3af" font-size="11">€40K</text>
+                            <text x="35" y="205" text-anchor="end" fill="#9ca3af" font-size="11">€0</text>
+
+                            <!-- Bars -->
+                            <!-- Annual Income -->
+                            <rect x="120" y="65" width="120" height="135" fill="#FF3621" rx="4"/>
+                            <text x="180" y="55" text-anchor="middle" fill="#FF5C4D" font-size="13" font-weight="bold">€120,000</text>
+                            <text x="180" y="220" text-anchor="middle" fill="#9ca3af" font-size="11">Annual Income</text>
+                            <text x="180" y="235" text-anchor="middle" fill="#9ca3af" font-size="10">(Declared)</text>
+
+                            <!-- 6-Day Transfers -->
+                            <rect x="320" y="110" width="120" height="90" fill="#ef4444" rx="4"/>
+                            <text x="380" y="100" text-anchor="middle" fill="#fca5a5" font-size="13" font-weight="bold">€56,700</text>
+                            <text x="380" y="220" text-anchor="middle" fill="#9ca3af" font-size="11">6-Day Transfers</text>
+                            <text x="380" y="235" text-anchor="middle" fill="#fca5a5" font-size="10">(47% of annual)</text>
+
+                            <!-- Annotation -->
+                            <text x="300" y="25" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="bold">⚠️ 47% of annual income in 6 days</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Transaction Pattern Timeline</h4>
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="text-gray-400 text-sm">Oct 24, 2025</span>
+                                <span class="text-red-400 font-mono">€9,500</span>
+                                <span class="text-gray-500 text-xs">Cumulative: €9,500 (7.9%)</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="text-gray-400 text-sm">Oct 25, 2025</span>
+                                <span class="text-red-400 font-mono">€9,000</span>
+                                <span class="text-gray-500 text-xs">Cumulative: €18,500 (15.4%)</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="text-gray-400 text-sm">Oct 26, 2025</span>
+                                <span class="text-red-400 font-mono">€9,800</span>
+                                <span class="text-gray-500 text-xs">Cumulative: €28,300 (23.6%)</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="text-gray-400 text-sm">Oct 27, 2025</span>
+                                <span class="text-red-400 font-mono">€9,300</span>
+                                <span class="text-gray-500 text-xs">Cumulative: €37,600 (31.3%)</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-gray-700 pb-2">
+                                <span class="text-gray-400 text-sm">Oct 28, 2025</span>
+                                <span class="text-red-400 font-mono">€9,700</span>
+                                <span class="text-gray-500 text-xs">Cumulative: €47,300 (39.4%)</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b-2 border-databricks-lava pb-2">
+                                <span class="text-gray-400 text-sm">Oct 29, 2025</span>
+                                <span class="text-red-400 font-mono">€9,400</span>
+                                <span class="text-red-400 text-xs font-bold">Cumulative: €56,700 (47.3%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Documentation Gaps Identified</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-start space-x-2">
+                            <svg class="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300 text-sm">No business invoices or contracts supporting €56,700 in transactions</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <svg class="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300 text-sm">Tax returns show only €120K annual income - insufficient to support transfer volume</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <svg class="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300 text-sm">No legitimate economic purpose identified for rapid sequential transfers</span>
+                        </div>
+                        <div class="flex items-start space-x-2">
+                            <svg class="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-300 text-sm">Financial statements do not reflect cash reserves capable of funding these transfers</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                    <h4 class="text-yellow-300 font-semibold mb-2">EDD Component: Source of Funds Verification</h4>
+                    <p class="text-gray-300 text-sm">
+                        Detailed investigation to confirm the origin of specific funds being used for transactions, ensuring they are not proceeds of crime. The significant mismatch between declared income and transaction volume, combined with lack of supporting documentation, indicates potential money laundering activity requiring immediate SAR filing.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Adverse Media -->
+    <div id="findingModal4" class="modal">
+        <div class="modal-content w-full">
+            <div class="p-6 border-b border-dark-border flex items-center justify-between">
+                <h3 class="text-xl font-bold text-red-400">Finding #4: Adverse Media - Sanctions Evasion</h3>
+                <button onclick="closeFindingModal(4)" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" style="max-height: 75vh; overflow-y: auto;">
+                <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4">
+                    <h4 class="text-red-300 font-semibold mb-2">Multiple Investigative Reports on Sanctions Evasion</h4>
+                    <p class="text-gray-300 text-sm">
+                        Subject's alias "D. van Dyke" has been mentioned in 3 independent investigative journalism reports published between 2022-2024, all relating to shadow fleet operations and Russian oil sanctions circumvention schemes.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Media Report Timeline</h4>
+                    <div class="bg-gray-900 rounded-lg p-6">
+                        <svg class="w-full h-48" viewBox="0 0 600 180">
+                            <!-- Timeline -->
+                            <line x1="50" y1="90" x2="550" y2="90" stroke="#FF3621" stroke-width="3"/>
+                            
+                            <!-- Report 1 -->
+                            <circle cx="150" cy="90" r="8" fill="#ef4444"/>
+                            <line x1="150" y1="90" x2="150" y2="40" stroke="#ef4444" stroke-width="2"/>
+                            <rect x="70" y="10" width="160" height="30" fill="#7f1d1d" stroke="#ef4444" stroke-width="1" rx="3"/>
+                            <text x="150" y="28" text-anchor="middle" fill="#fecaca" font-size="11" font-weight="bold">Report #1 - Mar 2022</text>
+
+                            <!-- Report 2 -->
+                            <circle cx="300" cy="90" r="8" fill="#ef4444"/>
+                            <line x1="300" y1="90" x2="300" y2="130" stroke="#ef4444" stroke-width="2"/>
+                            <rect x="220" y="130" width="160" height="30" fill="#7f1d1d" stroke="#ef4444" stroke-width="1" rx="3"/>
+                            <text x="300" y="148" text-anchor="middle" fill="#fecaca" font-size="11" font-weight="bold">Report #2 - Nov 2023</text>
+
+                            <!-- Report 3 -->
+                            <circle cx="450" cy="90" r="8" fill="#ef4444"/>
+                            <line x1="450" y1="90" x2="450" y2="40" stroke="#ef4444" stroke-width="2"/>
+                            <rect x="370" y="10" width="160" height="30" fill="#7f1d1d" stroke="#ef4444" stroke-width="1" rx="3"/>
+                            <text x="450" y="28" text-anchor="middle" fill="#fecaca" font-size="11" font-weight="bold">Report #3 - Jun 2024</text>
+
+                            <!-- Timeline labels -->
+                            <text x="150" y="110" text-anchor="middle" fill="#9ca3af" font-size="9">2022</text>
+                            <text x="300" y="110" text-anchor="middle" fill="#9ca3af" font-size="9">2023</text>
+                            <text x="450" y="110" text-anchor="middle" fill="#9ca3af" font-size="9">2024</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">Detailed Report Findings</h4>
+                    <div class="space-y-3">
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <h5 class="text-white font-semibold">Report #1: "Dark Fleet Chronicles"</h5>
+                                <span class="text-xs text-gray-500">March 2022</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mb-2">Published by: Global Investigative Journalism Network</p>
+                            <p class="text-sm text-gray-400">
+                                Investigative piece identified "D. van Dyke" as a beneficial owner of Maritime Holdings BV, operating vessels transporting Russian crude oil in violation of international sanctions. Report details complex ownership structures designed to evade sanctions compliance.
+                            </p>
+                            <div class="mt-2 flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-xs text-green-400">Verified by independent sources</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <h5 class="text-white font-semibold">Report #2: "Sanctions Evasion Networks"</h5>
+                                <span class="text-xs text-gray-500">November 2023</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mb-2">Published by: EU Sanctions Watch</p>
+                            <p class="text-sm text-gray-400">
+                                Comprehensive analysis naming "D. van Dyke" as a key figure in shadow fleet operations. Report documents vessel movements, port calls, and cargo manifests showing systematic sanctions circumvention activities across Mediterranean and Black Sea regions.
+                            </p>
+                            <div class="mt-2 flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-xs text-green-400">Cross-verified with AIS vessel tracking data</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 border-l-4 border-databricks-lava rounded p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <h5 class="text-white font-semibold">Report #3: "Shadow Fleet Expanded"</h5>
+                                <span class="text-xs text-gray-500">June 2024</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mb-2">Published by: Financial Times Investigations</p>
+                            <p class="text-sm text-gray-400">
+                                Follow-up investigation revealing expansion of "D. van Dyke" operations to include 4 additional vessels. Report details sophisticated schemes using multiple jurisdictions (Panama, Liberia, Malta, Marshall Islands) to obscure vessel ownership and evade sanctions enforcement.
+                            </p>
+                            <div class="mt-2 flex items-center space-x-2">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-xs text-green-400">Corroborated by maritime insurance records</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-semibold mb-3">OSINT Data Sources</h4>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div class="bg-gray-800 rounded p-3">
+                            <div class="text-databricks-lava font-semibold mb-1">✓ Deep Web Searches</div>
+                            <div class="text-xs text-gray-400">47 data sources queried</div>
+                        </div>
+                        <div class="bg-gray-800 rounded p-3">
+                            <div class="text-databricks-lava font-semibold mb-1">✓ Translation Services</div>
+                            <div class="text-xs text-gray-400">Russian, Greek, Dutch sources</div>
+                        </div>
+                        <div class="bg-gray-800 rounded p-3">
+                            <div class="text-databricks-lava font-semibold mb-1">✓ AIS Vessel Tracking</div>
+                            <div class="text-xs text-gray-400">Movement data validated</div>
+                        </div>
+                        <div class="bg-gray-800 rounded p-3">
+                            <div class="text-databricks-lava font-semibold mb-1">✓ Corporate Registries</div>
+                            <div class="text-xs text-gray-400">Cross-jurisdictional verification</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                    <h4 class="text-yellow-300 font-semibold mb-2">EDD Component: Detailed Adverse Media Investigation</h4>
+                    <p class="text-gray-300 text-sm">
+                        Conducting in-depth, open-source intelligence (OSINT) research beyond automated screening to analyze context, severity, and relevance of negative news hits. The consistency and detail across multiple independent investigative sources provides high-confidence validation of subject's involvement in sanctions evasion activities.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="demo-nav-bar fixed bottom-0 left-0 right-0 bg-dark-panel border-t border-dark-border backdrop-blur-sm bg-opacity-90 z-50">
+        <div class="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+            <a href="demo-navigation.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-sm font-medium">Overview</span>
+            </a>
+            
+            <div class="flex items-center space-x-1 text-sm text-gray-400">
+                <span>Scene 4</span>
+                <span class="text-gray-600">of</span>
+                <span>5</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="scene3-ai-monitoring.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    <span class="text-sm font-medium">Previous</span>
+                </a>
+                <a href="scene5-sar-filing.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-databricks-lava hover:bg-opacity-90 text-white transition-colors">
+                    <span class="text-sm font-medium">Next</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let startTime;
+        let timerInterval;
+        let currentTime = 0;
+
+        // Agent workflow configuration
+        const agents = [
+            {
+                id: 'identity',
+                name: 'Identity & Structure Verification',
+                type: 'investigator',
+                description: 'Collecting corporate registration documents and partnership agreements',
+                documents: ['Corporate Registration (NL)', 'Partnership Agreements', 'Commercial Registry Data'],
+                duration: 8000,
+                findings: 'Found 3 corporate entities with subject as beneficial owner'
+            },
+            {
+                id: 'sof',
+                name: 'Source of Funds Verification',
+                type: 'investigator',
+                description: 'Analyzing wire instructions and transaction receipts',
+                documents: ['Wire Instructions', 'Transaction Receipts', 'Deal Documents'],
+                duration: 10000,
+                findings: 'No legitimate business documentation supporting €56,700 transfers'
+            },
+            {
+                id: 'sow',
+                name: 'Source of Wealth Verification',
+                type: 'investigator',
+                description: 'Reviewing financial statements and tax returns',
+                documents: ['Financial Statements', 'Tax Returns (2022-2024)', 'Employment Records'],
+                duration: 12000,
+                findings: 'Declared SME income (€120K) inconsistent with transfer volumes'
+            },
+            {
+                id: 'media',
+                name: 'Adverse Media Investigation',
+                type: 'investigator',
+                description: 'Deep web searches and translation services',
+                documents: ['News Articles', 'Investigative Reports', 'Translated Documents'],
+                duration: 15000,
+                findings: 'Subject alias found in 3 investigative reports on shadow fleet operations'
+            },
+            {
+                id: 'monitoring',
+                name: 'Continuous Monitoring Setup',
+                type: 'investigator',
+                description: 'Configuring automated profile change detection',
+                documents: ['PEP/Sanctions Screening', 'Risk Profile Updates', 'Alert Triggers'],
+                duration: 6000,
+                findings: 'Elevated monitoring configured with daily screening'
+            },
+            {
+                id: 'scrutiny',
+                name: 'Enhanced Transaction Scrutiny',
+                type: 'investigator',
+                description: 'Detailed analysis of payment patterns and counterparties',
+                documents: ['Transaction Patterns', 'Counterparty Analysis', 'Beneficiary Data'],
+                duration: 11000,
+                findings: 'All transactions to same offshore account (ACCT-***-4521)'
+            }
+        ];
+
+        // Activity log entries
+        const activities = [
+            { time: 1000, text: '🚀 Investigation initiated - Deploying 6 investigator agents', type: 'info' },
+            { time: 2000, text: '🔍 Identity Agent: Querying Netherlands Commercial Registry...', type: 'agent' },
+            { time: 4500, text: '⚠️ Identity Agent: Found alias "D. van Dyke" in Panama Papers database', type: 'warning' },
+            { time: 6000, text: '✅ QA Agent: Validated corporate registration documents (3/3 verified)', type: 'success' },
+            { time: 7500, text: '🔍 SOF Agent: Analyzing wire transfer receipts and instructions...', type: 'agent' },
+            { time: 9000, text: '🔍 SOW Agent: Cross-referencing tax returns with transaction volumes...', type: 'agent' },
+            { time: 11000, text: '⚠️ SOF Agent: No supporting business documentation found', type: 'warning' },
+            { time: 13000, text: '✅ QA Agent: Financial statement analysis validated (100% confidence)', type: 'success' },
+            { time: 14500, text: '🔍 Media Agent: Searching 47 data sources including leaked documents...', type: 'agent' },
+            { time: 17000, text: '🚨 Media Agent: CRITICAL - Subject linked to sanctioned shadow fleet entities', type: 'critical' },
+            { time: 19000, text: '🔍 Scrutiny Agent: Deep analysis of beneficiary account patterns...', type: 'agent' },
+            { time: 21000, text: '✅ QA Agent: Adverse media findings cross-verified across 3 independent sources', type: 'success' },
+            { time: 23000, text: '⚠️ Scrutiny Agent: Identified layered offshore ownership structure', type: 'warning' },
+            { time: 25000, text: '✅ QA Agent: Transaction pattern analysis validated - structuring confirmed', type: 'success' },
+            { time: 27000, text: '🔍 Monitoring Agent: Configuring enhanced monitoring protocols...', type: 'agent' },
+            { time: 28500, text: '✅ QA Agent: All 23 documents verified with 100% validation rate', type: 'success' },
+            { time: 30000, text: '🏁 Investigation complete - 4 critical findings identified', type: 'complete' }
+        ];
+
+        function startEDDInvestigation() {
+            // Hide workload screen, show investigation screen
+            document.getElementById('workloadScreen').classList.add('hidden');
+            document.getElementById('investigationScreen').classList.remove('hidden');
+            document.getElementById('investigationScreen').classList.add('flex');
+
+            // Start timer
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 100);
+
+            // Initialize agents
+            initializeAgents();
+
+            // Start activity log
+            processActivities();
+
+            // Complete investigation after all agents finish
+            setTimeout(() => {
+                completeInvestigation();
+            }, 32000);
+        }
+
+        function updateTimer() {
+            // Multiply by 10 to show realistic timescale (1 real second = 10 displayed seconds)
+            const actualElapsed = Math.floor((Date.now() - startTime) / 1000);
+            currentTime = actualElapsed * 10;
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = currentTime % 60;
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timerDisplay').textContent = display;
+        }
+
+        function initializeAgents() {
+            const container = document.getElementById('agentWorkflow');
+            
+            agents.forEach((agent, index) => {
+                setTimeout(() => {
+                    const agentCard = createAgentCard(agent);
+                    container.appendChild(agentCard);
+                    
+                    // Start agent work
+                    setTimeout(() => {
+                        startAgentWork(agent.id);
+                    }, 500);
+
+                    // QA validation after agent completes
+                    setTimeout(() => {
+                        completeAgentWork(agent.id);
+                        setTimeout(() => {
+                            startQAValidation(agent.id);
+                        }, 1000);
+                        setTimeout(() => {
+                            completeQAValidation(agent.id);
+                        }, 2500);
+                    }, agent.duration);
+
+                }, index * 1500);
+            });
+        }
+
+        function createAgentCard(agent) {
+            const card = document.createElement('div');
+            card.id = `agent-${agent.id}`;
+            card.className = 'bg-gray-800 border-2 border-gray-700 rounded-lg p-4 fade-in';
+            card.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="agent-icon w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-white font-semibold">${agent.name}</h4>
+                            <p class="text-xs text-gray-400">Investigator Agent</p>
+                        </div>
+                    </div>
+                    <div class="agent-status">
+                        <span class="text-xs text-gray-500 px-2 py-1 bg-gray-700 rounded">Initializing</span>
+                    </div>
+                </div>
+                <div class="agent-description text-sm text-gray-300 mb-3">${agent.description}</div>
+                <div class="agent-progress hidden">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <div class="typing-dots flex space-x-1">
+                            <span class="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                            <span class="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                            <span class="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                        </div>
+                        <span class="text-xs text-yellow-400">Processing...</span>
+                    </div>
+                    <div class="text-xs text-gray-400 space-y-1 agent-documents"></div>
+                </div>
+                <div class="agent-findings hidden mt-3 bg-green-900 bg-opacity-30 border border-green-700 rounded p-3">
+                    <p class="text-sm text-green-300"><strong>Finding:</strong> ${agent.findings}</p>
+                </div>
+                <div class="agent-qa hidden mt-2 bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-2 agent-qa">
+                    <div class="flex items-center space-x-2">
+                        <div class="progress-spinner w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full"></div>
+                        <span class="text-xs text-yellow-300">QA Agent validating findings...</span>
+                    </div>
+                </div>
+                <div class="agent-validated hidden mt-2 flex items-center space-x-2 text-green-400">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-sm font-semibold">QA Validated ✓</span>
+                </div>
+            `;
+            return card;
+        }
+
+        function startAgentWork(agentId) {
+            const card = document.getElementById(`agent-${agentId}`);
+            const agent = agents.find(a => a.id === agentId);
+            
+            card.classList.add('agent-working');
+            card.querySelector('.agent-status').innerHTML = '<span class="text-xs text-yellow-400 px-2 py-1 bg-yellow-900 rounded">Working</span>';
+            card.querySelector('.agent-progress').classList.remove('hidden');
+            
+            // Update icon to yellow/working state
+            const agentIcon = card.querySelector('.agent-icon');
+            agentIcon.className = 'agent-icon w-10 h-10 bg-yellow-600 rounded-lg flex items-center justify-center';
+            agentIcon.querySelector('svg').className = 'w-6 h-6 text-white';
+            
+            // Simulate document collection
+            const docsContainer = card.querySelector('.agent-documents');
+            agent.documents.forEach((doc, index) => {
+                setTimeout(() => {
+                    const docEl = document.createElement('div');
+                    docEl.textContent = `✓ Collected: ${doc}`;
+                    docEl.className = 'fade-in';
+                    docsContainer.appendChild(docEl);
+                }, index * 1500);
+            });
+        }
+
+        function completeAgentWork(agentId) {
+            const card = document.getElementById(`agent-${agentId}`);
+            
+            card.classList.remove('agent-working');
+            card.querySelector('.agent-status').innerHTML = '<span class="text-xs text-green-400 px-2 py-1 bg-green-900 rounded">Complete</span>';
+            card.querySelector('.agent-progress').classList.add('hidden');
+            card.querySelector('.agent-findings').classList.remove('hidden');
+        }
+
+        function startQAValidation(agentId) {
+            const card = document.getElementById(`agent-${agentId}`);
+            card.querySelector('.agent-qa').classList.remove('hidden');
+        }
+
+        function completeQAValidation(agentId) {
+            const card = document.getElementById(`agent-${agentId}`);
+            card.classList.add('agent-complete');
+            card.querySelector('.agent-qa').classList.add('hidden');
+            card.querySelector('.agent-validated').classList.remove('hidden');
+            
+            // Update icon to green/complete state
+            const agentIcon = card.querySelector('.agent-icon');
+            agentIcon.className = 'agent-icon w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center';
+            agentIcon.querySelector('svg').className = 'w-6 h-6 text-white';
+        }
+
+        function processActivities() {
+            activities.forEach(activity => {
+                setTimeout(() => {
+                    addActivityLog(activity);
+                }, activity.time);
+            });
+        }
+
+        function addActivityLog(activity) {
+            const container = document.getElementById('activityLog');
+            const logEntry = document.createElement('div');
+            
+            let bgColor = 'bg-gray-800';
+            let borderColor = 'border-gray-700';
+            let textColor = 'text-gray-300';
+            
+            if (activity.type === 'warning') {
+                bgColor = 'bg-yellow-900 bg-opacity-30';
+                borderColor = 'border-yellow-600';
+                textColor = 'text-yellow-300';
+            } else if (activity.type === 'success') {
+                bgColor = 'bg-green-900 bg-opacity-30';
+                borderColor = 'border-green-600';
+                textColor = 'text-green-300';
+            } else if (activity.type === 'critical') {
+                bgColor = 'bg-red-900 bg-opacity-40';
+                borderColor = 'border-databricks-lava';
+                textColor = 'text-red-300';
+            } else if (activity.type === 'complete') {
+                bgColor = 'bg-blue-900 bg-opacity-40';
+                borderColor = 'border-blue-500';
+                textColor = 'text-blue-300';
+            }
+            
+            logEntry.className = `${bgColor} border ${borderColor} rounded-lg p-3 fade-in`;
+            logEntry.innerHTML = `
+                <div class="flex items-start space-x-2">
+                    <span class="text-xs text-gray-500 font-mono mt-0.5">${formatTime(activity.time)}</span>
+                    <p class="text-sm ${textColor} flex-1">${activity.text}</p>
+                </div>
+            `;
+            
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function formatTime(ms) {
+            // Multiply by 10 to match displayed timer (1 real second = 10 displayed seconds)
+            const seconds = Math.floor(ms / 1000) * 10;
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function completeInvestigation() {
+            clearInterval(timerInterval);
+            
+            // Update completion time in modal
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = currentTime % 60;
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('completionTime').textContent = display;
+            
+            // Show completion modal
+            document.getElementById('completionModal').classList.add('active');
+        }
+
+        function showResults() {
+            // Close completion modal
+            document.getElementById('completionModal').classList.remove('active');
+            
+            // Add fade-out animation to investigation screen
+            const investigationScreen = document.getElementById('investigationScreen');
+            investigationScreen.classList.add('screen-transition');
+            
+            // Wait for fade-out, then switch screens
+            setTimeout(() => {
+                investigationScreen.classList.add('hidden');
+                document.getElementById('resultsScreen').classList.remove('hidden');
+                document.getElementById('resultsScreen').classList.add('flex');
+                
+                // Add fade-in animation to results screen
+                document.getElementById('resultsScreen').classList.add('screen-fade-in');
+                
+                // Update final timer
+                const minutes = Math.floor(currentTime / 60);
+                const seconds = currentTime % 60;
+                const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                document.getElementById('finalTimerDisplay').textContent = display;
+            }, 400); // Match the screen-transition animation duration
+        }
+
+        // Modal functions for findings
+        function openFindingModal(findingNumber) {
+            document.getElementById(`findingModal${findingNumber}`).classList.add('active');
+        }
+
+        function closeFindingModal(findingNumber) {
+            document.getElementById(`findingModal${findingNumber}`).classList.remove('active');
+        }
+
+        // Report Editor Functions
+        function openReportEditor() {
+            document.getElementById('reportEditorModal').classList.add('active');
+        }
+
+        function closeReportEditor() {
+            document.getElementById('reportEditorModal').classList.remove('active');
+        }
+
+        // Navigate to Scene 5
+        function navigateToScene5() {
+            window.location.href = 'scene5-sar-filing.html';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        }
+    </script>
+
+</body>
+</html>

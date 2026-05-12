@@ -1,15 +1,12 @@
-# Databricks Asset Bundle files
+# Databricks Asset Bundle
 .databricks/
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+# Local MLflow
+**/mlruns/
+*.db
 
-# OS files
-.DS_Store
-Thumbs.db
+# Notebook checkpoints
+.ipynb_checkpoints/
 
 # Python
 __pycache__/
@@ -18,10 +15,23 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.venv/
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
+# IDE / editor
+.vscode/
+.cursor/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Environment files
 .env
-.env.local 
+.env.local
+
+# Auto-generated
+__builtins__.pyi
+uv.lock

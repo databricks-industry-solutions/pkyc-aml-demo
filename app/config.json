@@ -1,0 +1,142 @@
+{
+  "riskLevels": {
+    "low": {
+      "color": "#10b981",
+      "weight": 95,
+      "label": "Complete"
+    },
+    "medium": {
+      "color": "#f59e0b",
+      "weight": 4,
+      "label": "Investigate"
+    },
+    "high": {
+      "color": "#ef4444",
+      "weight": 1,
+      "label": "Blocked"
+    }
+  },
+  "financialHubs": {
+    "NYC": {
+      "name": "New York City",
+      "lat": 40.7128,
+      "lon": -74.0060,
+      "code": "NYC",
+      "flag": "🇺🇸"
+    },
+    "LDN": {
+      "name": "London",
+      "lat": 51.5074,
+      "lon": -0.1278,
+      "code": "LDN",
+      "flag": "🇬🇧"
+    },
+    "HKG": {
+      "name": "Hong Kong",
+      "lat": 22.3193,
+      "lon": 114.1694,
+      "code": "HKG",
+      "flag": "🇭🇰"
+    },
+    "SGP": {
+      "name": "Singapore",
+      "lat": 1.3521,
+      "lon": 103.8198,
+      "code": "SGP",
+      "flag": "🇸🇬"
+    },
+    "SFO": {
+      "name": "San Francisco",
+      "lat": 37.7749,
+      "lon": -122.4194,
+      "code": "SFO",
+      "flag": "🇺🇸"
+    },
+    "CHI": {
+      "name": "Chicago",
+      "lat": 41.8781,
+      "lon": -87.6298,
+      "code": "CHI",
+      "flag": "🇺🇸"
+    },
+    "LAX": {
+      "name": "Los Angeles",
+      "lat": 34.0522,
+      "lon": -118.2437,
+      "code": "LAX",
+      "flag": "🇺🇸"
+    },
+    "SHA": {
+      "name": "Shanghai",
+      "lat": 31.2304,
+      "lon": 121.4737,
+      "code": "SHA",
+      "flag": "🇨🇳"
+    },
+    "SEL": {
+      "name": "Seoul",
+      "lat": 37.5665,
+      "lon": 126.9780,
+      "code": "SEL",
+      "flag": "🇰🇷"
+    },
+    "FRA": {
+      "name": "Frankfurt",
+      "lat": 50.1109,
+      "lon": 8.6821,
+      "code": "FRA",
+      "flag": "🇩🇪"
+    },
+    "DXB": {
+      "name": "Dubai",
+      "lat": 25.2048,
+      "lon": 55.2708,
+      "code": "DXB",
+      "flag": "🇦🇪"
+    },
+    "AMS": {
+      "name": "Amsterdam",
+      "lat": 52.3676,
+      "lon": 4.9041,
+      "code": "AMS",
+      "flag": "🇳🇱"
+    },
+    "PAR": {
+      "name": "Paris",
+      "lat": 48.8566,
+      "lon": 2.3522,
+      "code": "PAR",
+      "flag": "🇫🇷"
+    },
+    "MAD": {
+      "name": "Madrid",
+      "lat": 40.4168,
+      "lon": -3.7038,
+      "code": "MAD",
+      "flag": "🇪🇸"
+    },
+    "ROM": {
+      "name": "Rome",
+      "lat": 41.9028,
+      "lon": 12.4964,
+      "code": "ROM",
+      "flag": "🇮🇹"
+    },
+    "TKY": {
+      "name": "Tokyo",
+      "lat": 35.6762,
+      "lon": 139.6503,
+      "code": "TKY",
+      "flag": "🇯🇵"
+    },
+    "DUB": {
+      "name": "Dublin",
+      "lat": 53.3498,
+      "lon": -6.2603,
+      "code": "DUB",
+      "flag": "🇮🇪"
+    }
+  }
+}
+
+

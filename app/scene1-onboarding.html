@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seamless KYC Onboarding</title>
+    <link rel="icon" href="https://www.databricks.com/en-website-assets/favicon-32x32.png?v=c9b9916c3b27dc51866c46b79a6e9b88" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="theme-config.js"></script>
+    <script src="demo-controls.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'databricks-navy': '#0B2026',
+                        'databricks-lava': '#FF3621',
+                        'databricks-oat-medium': '#EEEDE9',
+                        'databricks-oat-light': '#F9F7F4',
+                        'dark-bg': '#0B2026',
+                        'dark-panel': '#0B2026',
+                        'dark-border': 'rgba(238, 237, 233, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0B2026;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        code, .font-mono {
+            font-family: 'DM Mono', monospace;
+        }
+
+        /* Phone mockup styling */
+        .phone-mockup {
+            width: 375px;
+            height: 750px;
+            border-radius: 40px;
+            background: linear-gradient(to bottom, #0B2026, #0d2832);
+            border: 14px solid #0B2026;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(238, 237, 233, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        .chat-bubble {
+            animation: slideInChat 0.6s ease-out;
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes slideInChat {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: #FF3621;
+            border-radius: 18px;
+            border-radius-bottom-left: 4px;
+        }
+
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: typingBounce 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .data-card {
+            animation: fadeInCard 0.8s ease-out;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes fadeInCard {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .connection-line {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawLine 2s ease-out forwards;
+        }
+
+        @keyframes drawLine {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .data-flow-dot {
+            animation: flowDot 3s ease-in-out infinite;
+        }
+
+        @keyframes flowDot {
+            0%, 100% {
+                opacity: 0;
+                transform: translateX(0);
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .backend-pulse {
+            animation: backendPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes backendPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 54, 33, 0.4);
+                border-color: #FF3621;
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(255, 54, 33, 0);
+                border-color: #FF5C4D;
+            }
+        }
+
+        .checkmark-animation {
+            animation: checkmarkPop 0.6s ease-out;
+        }
+
+        @keyframes checkmarkPop {
+            0% { transform: scale(0) rotate(-45deg); }
+            50% { transform: scale(1.3) rotate(-45deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: rgba(238, 237, 233, 0.05);
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(238, 237, 233, 0.2);
+            border-radius: 3px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: rgba(238, 237, 233, 0.3);
+        }
+
+        /* Permanent Navigation Bar */
+        .demo-nav-bar {
+            opacity: 1;
+            height: 80px;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 min-h-screen flex items-center justify-center" style="padding-bottom: 80px;">
+    <!-- Main Container -->
+    <div class="flex flex-col items-center w-full min-h-screen pt-8 px-8" style="padding-bottom: 100px;">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center mb-3">
+                <img src="DBLogo.png" alt="Databricks Logo" class="h-10 object-contain">
+            </div>
+                <h1 class="text-3xl font-bold text-white mb-1">Seamless KYC Onboarding</h1>
+            <p class="text-gray-400 text-sm">BankBricks AI-Powered Customer Onboarding</p>
+            
+            <!-- Prominent Metric -->
+            <div class="mt-6 inline-flex items-center space-x-8 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-purple-500/30 rounded-xl px-8 py-4">
+                <div class="text-center">
+                    <div id="onboardingTime" class="text-4xl font-bold text-green-400 mb-1">0s</div>
+                    <div class="text-xs text-gray-400">Onboarding Time</div>
+                </div>
+                <div class="text-3xl text-gray-600">vs</div>
+<div class="text-center">
+                    <div class="text-2xl font-bold text-gray-500 mb-1">2 days</div>
+                    <div class="text-xs text-gray-500">Manual KYC</div>
+                </div>
+                <div id="fasterPercentage" class="border-l border-gray-700 pl-6" style="opacity: 0; transition: opacity 0.5s;">
+                    <div id="fasterValue" class="text-3xl font-bold text-purple-400">99.9%</div>
+                    <div class="text-xs text-gray-400">Faster</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Three Column Layout -->
+        <div class="grid grid-cols-12 gap-8 w-full max-w-7xl items-start">
+            
+            <!-- LEFT COLUMN: Customer Data & Controls -->
+            <div class="col-span-3 space-y-4">
+                <!-- Chat Controls -->
+                <div class="bg-dark-panel border border-blue-500 rounded-lg p-4">
+                    <h3 class="text-sm font-semibold text-databricks-lava mb-3 text-center">DEMO CONTROLS</h3>
+                    <div class="flex flex-col space-y-2">
+                        <button id="playBtn" class="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>Play</span>
+                        </button>
+                        <button id="pauseBtn" class="flex items-center justify-center space-x-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-white font-medium transition-colors" disabled>
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>Pause</span>
+                        </button>
+                        <button id="restartBtn" class="flex items-center justify-center space-x-2 px-4 py-2 bg-databricks-lava hover:bg-opacity-90 rounded-lg text-white font-medium transition-colors">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span>Restart</span>
+                        </button>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-700">
+                        <div class="text-xs text-gray-400 mb-1">Progress</div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-400 text-center">
+                            <span id="progressTime">0s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mb-4">
+                    <h3 class="text-sm font-semibold text-databricks-lava mb-1">CUSTOMER DATA</h3>
+                    <p class="text-xs text-gray-500">Information Being Captured</p>
+                </div>
+
+                <!-- Name Card -->
+                <div id="nameCard" class="data-card bg-dark-panel border border-gray-700 rounded-lg p-4" style="animation-delay: 0.5s;">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-400">Full Name</span>
+                    </div>
+                    <div class="text-gray-500 font-semibold">--</div>
+                </div>
+
+                <!-- DOB Card -->
+                <div id="dobCard" class="data-card bg-dark-panel border border-gray-700 rounded-lg p-4" style="animation-delay: 0.7s;">
+                    <div class="text-xs text-gray-400 mb-2">Date of Birth</div>
+                    <div class="text-gray-500 font-semibold">--</div>
+                </div>
+
+                <!-- Passport Card -->
+                <div id="passportCard" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-4" style="animation-delay: 0.9s;">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-400">Proof of Identity</span>
+                    </div>
+                    <div id="passportNumber" class="text-gray-500 font-mono" style="display: none;">**********890</div>
+                    <div id="passportStatus" class="text-xs text-gray-500 mt-1">📄 Awaiting Upload</div>
+                </div>
+
+                <!-- Proof of Address Card -->
+                <div id="addressCard" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-4" style="animation-delay: 1.1s;">
+                    <div class="text-xs text-gray-400 mb-2">Proof of Address</div>
+                    <div class="text-gray-500 text-xs">📄 Awaiting Upload</div>
+                </div>
+            </div>
+
+            <!-- CENTER COLUMN: Mobile Phone with Chat -->
+            <div class="col-span-6 flex flex-col items-center">
+                <div class="phone-mockup relative">
+                    <!-- Phone Notch -->
+                    <div class="phone-notch"></div>
+
+                    <!-- Phone Content -->
+                    <div class="h-full flex flex-col pt-12 pb-6 px-6">
+                        <!-- App Header -->
+                        <div class="flex-shrink-0 text-center mb-6">
+                            <div class="w-16 h-16 bg-white rounded-2xl mx-auto mb-3 flex items-center justify-center p-2">
+                                <img src="DBLogo.png" alt="Databricks Logo" class="w-full h-full object-contain">
+                            </div>
+                            <h2 class="text-xl font-bold text-white">BankBricks</h2>
+                            <p class="text-xs text-gray-400 mt-1">Your AI Banking Assistant</p>
+                        </div>
+
+                        <!-- Chat Messages -->
+                        <div id="chatContainer" class="flex-1 space-y-3 overflow-y-auto px-2 scrollbar-thin">
+                            <!-- AI: Welcome Message -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 0.5s;">
+                                <div class="bg-databricks-lava rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Welcome, Dirk! 👋</p>
+                                    <p class="text-sm text-white mt-1">I'm here to help you open your account in seconds.</p>
+                                </div>
+                            </div>
+
+                            <!-- Customer: Response -->
+                            <div class="chat-bubble flex justify-end" style="animation-delay: 1s;">
+                                <div class="bg-gray-700 rounded-2xl rounded-tr-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Hi! That sounds great.</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: Quick intro -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 1.5s;">
+                                <div class="bg-databricks-lava rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">I'll guide you through a quick verification process. It should only take a minute!</p>
+                                </div>
+                            </div>
+
+                            <!-- Customer: Sounds good -->
+                            <div class="chat-bubble flex justify-end" style="animation-delay: 2s;">
+                                <div class="bg-gray-700 rounded-2xl rounded-tr-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Sounds good! What do you need?</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: ID Request -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 2.5s;">
+                                <div class="bg-databricks-lava rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Let's start by verifying your identity. Please scan your passport using your camera.</p>
+                                </div>
+                            </div>
+
+                            <!-- Customer: Scanning -->
+                            <div class="chat-bubble flex justify-end" style="animation-delay: 3s;">
+                                <div class="bg-gray-700 rounded-2xl rounded-tr-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Done! Just scanned it.</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: Processing -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 3.3s;">
+                                <div class="bg-databricks-lava rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Great! Verifying your document now...</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: ID Check Complete -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 3.8s;">
+                                <div class="bg-green-600 rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        <p class="text-sm text-white font-semibold">Identity Verified!</p>
+                                    </div>
+                                    <p class="text-xs text-white opacity-90">Your passport has been validated and sanctions checks are clear.</p>
+                                </div>
+                            </div>
+
+                            <!-- Customer: Excited -->
+                            <div class="chat-bubble flex justify-end" style="animation-delay: 4.3s;">
+                                <div class="bg-gray-700 rounded-2xl rounded-tr-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Wow, that was fast! ⚡</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: Next Step -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 4.8s;">
+                                <div class="bg-databricks-lava rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Perfect! One more step. Please upload a Proof of Address document.</p>
+                                    <p class="text-xs text-blue-200 mt-1">(Recent Utility Bill or Bank Statement)</p>
+                                </div>
+                            </div>
+
+                            <!-- Customer: Will do -->
+                            <div class="chat-bubble flex justify-end" style="animation-delay: 5.3s;">
+                                <div class="bg-gray-700 rounded-2xl rounded-tr-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">Sure, uploading it now... 📄</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: Address verified -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 5.8s;">
+                                <div class="bg-green-600 rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        <p class="text-sm text-white font-semibold">Address Verified!</p>
+                                    </div>
+                                    <p class="text-xs text-white opacity-90">Document accepted.</p>
+                                </div>
+                            </div>
+
+                            <!-- AI: All done -->
+                            <div class="chat-bubble flex justify-start" style="animation-delay: 6.3s;">
+                                <div class="bg-databricks-lava rounded-2xl rounded-tl-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">🎉 All set! Your account is ready.</p>
+                                    <p class="text-sm text-white mt-1">You can start banking right away!</p>
+                                </div>
+                            </div>
+
+                            <!-- Customer: Thanks -->
+                            <div class="chat-bubble flex justify-end" style="animation-delay: 6.8s;">
+                                <div class="bg-gray-700 rounded-2xl rounded-tr-sm p-3 max-w-[75%]">
+                                    <p class="text-sm text-white">That was incredibly easy. Thank you! 🙌</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Status / Completion Message -->
+                        <div id="completionMessage" class="flex-shrink-0 mt-4 pt-4 border-t border-gray-700" style="display: none;">
+                            <div class="bg-green-900 bg-opacity-40 rounded-xl p-4 text-center">
+                                <div class="text-3xl mb-2">🎉</div>
+                                <p class="text-lg font-bold text-white mb-1">Welcome to BankBricks</p>
+                                <p class="text-sm text-green-300 mb-3">Your onboarding is complete</p>
+                                <div id="accountButtons" class="space-y-2">
+                                    <button id="smeButton" class="w-full bg-databricks-lava hover:bg-opacity-90 text-white text-sm font-medium py-2 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors" style="display: none;">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <span>Access SME Business Account</span>
+                                    </button>
+                                    <button id="investmentButton" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors" style="display: none;">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                        </svg>
+                                        <span>Access Investment Account</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile Label -->
+                <div class="mt-4 text-center">
+                    <p class="text-xs text-gray-400">Customer View</p>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Backend Processing -->
+            <div class="col-span-3 space-y-2">
+                <div class="text-center mb-3">
+                    <h3 class="text-sm font-semibold text-purple-400 mb-1">BACKEND PROCESSING</h3>
+                    <p class="text-xs text-gray-500">Real-Time Verification</p>
+                </div>
+
+                <!-- Processing Speed Indicator -->
+                <div class="data-card bg-gradient-to-r from-purple-900 to-blue-900 border border-purple-500 rounded-lg p-2.5" style="animation-delay: 0.8s;">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-purple-300 font-semibold">Processing Time</div>
+                            <div id="processingTime" class="text-2xl font-bold text-white">0s</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400">Manual KYC</div>
+                            <div class="text-sm text-gray-500">2 days</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Assessment (Hidden until complete) -->
+                <div id="riskAssessment" class="data-card bg-green-900 bg-opacity-40 border border-green-500 rounded-lg p-3" style="display: none;">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-green-400 mb-1">Risk Assessment</p>
+                            <p class="text-2xl font-bold text-green-300">LOW RISK</p>
+                        </div>
+                        <svg class="w-10 h-10 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Sanctions Check -->
+                <div id="sanctionsCheck" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 1s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">Sanctions</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- PEP Check -->
+                <div id="pepCheck" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 1.2s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">PEP Screen</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- Adverse Media -->
+                <div id="mediaCheck" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 1.4s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6zm6 6H5v2h6v-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">Adverse Media</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- Document Verification -->
+                <div id="ocrCheck" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 1.6s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">ai_parse_document()</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- Customer Risk Assessment -->
+                <div id="customerRisk" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 1.8s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">Customer Risk</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- Fraud Detection -->
+                <div id="fraudCheck" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 2s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">Fraud Detection</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- AML Compliance -->
+                <div id="amlCheck" class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 2.2s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-gray-500 font-semibold">AML Compliance</span>
+                        </div>
+                        <span class="text-xs text-gray-500">--</span>
+                    </div>
+                </div>
+
+                <!-- Unity Catalog -->
+                <div class="data-card bg-dark-panel border border-purple-600 rounded-lg p-2" style="animation-delay: 2.4s;">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-xs text-purple-400 font-semibold">Unity Catalog</span>
+                        </div>
+                        <span class="text-xs text-gray-400"><span id="unityCatalogCount">0</span> accesses</span>
+                    </div>
+                </div>
+
+                <!-- Data Lineage Summary -->
+                <div class="data-card bg-dark-panel border border-gray-600 rounded-lg p-2" style="animation-delay: 2.6s;">
+                    <div class="text-xs text-gray-400 mb-1.5">Data Sources</div>
+                    <div class="grid grid-cols-2 gap-1.5 text-xs">
+                        <div class="flex items-center">
+                            <span class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1"></span>
+                            <span class="text-gray-300 text-xs">APIs: <span id="apiCount">0</span></span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-1.5 h-1.5 bg-blue-400 rounded-full mr-1"></span>
+                            <span class="text-gray-300 text-xs">Models: <span id="modelCount">0</span></span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-1.5 h-1.5 bg-purple-400 rounded-full mr-1"></span>
+                            <span class="text-gray-300 text-xs">DBs: <span id="dbCount">0</span></span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-1"></span>
+                            <span class="text-gray-300 text-xs">Docs: <span id="docCount">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="demo-nav-bar fixed bottom-0 left-0 right-0 bg-dark-panel border-t border-dark-border backdrop-blur-sm bg-opacity-90 z-50">
+        <div class="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+            <a href="demo-navigation.html" class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-sm font-medium">Overview</span>
+            </a>
+            
+            <div class="flex items-center space-x-1 text-sm text-gray-400">
+                <span>Scene 1</span>
+                <span class="text-gray-600">of</span>
+                <span>5</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button disabled class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-800 text-gray-600 cursor-not-allowed opacity-50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    <span class="text-sm font-medium">Previous</span>
+                </button>
+                <a href="scene2-txn-screening.html" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-databricks-lava hover:bg-opacity-90 text-white transition-colors">
+                    <span class="text-sm font-medium">Next</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === DEMO CONFIGURATION ===
+        // Duration is adjustable between 56-66 seconds (56000-66000 milliseconds)
+        // Timer ends when accounts are opened (at 60s)
+        // Processing time will automatically be 80% of onboarding time
+        const TOTAL_DURATION = 60000; // 60 seconds in milliseconds
+        let currentTime = 0;
+        let isPaused = true; // Start paused
+        let animationFrameId = null;
+        let lastFrameTime = 0;
+        let chatMessages = [];
+        let dataSourceCounts = { apis: 0, models: 0, dbs: 0, docs: 0 };
+        let unityCatalogCount = 0;
+
+        // State tracking
+        const processStates = {
+            ocrCheck: 'idle',
+            sanctionsCheck: 'idle',
+            pepCheck: 'idle',
+            mediaCheck: 'idle',
+            fraudCheck: 'idle',
+            amlCheck: 'idle',
+            customerRisk: 'idle'
+        };
+
+        // Timeline events (in milliseconds) - Updated with account selection first
+        const timeline = [
+            // Name asking conversation
+            { time: 1000, action: 'showChatMessage', messageId: 0 },
+            { time: 4000, action: 'showChatMessage', messageId: 1 },
+            { time: 4100, action: 'updateNameCard' },
+            { time: 7000, action: 'showChatMessage', messageId: 2 },
+            { time: 10000, action: 'showChatMessage', messageId: 3 },
+            
+            // Account type selection (before ID verification)
+            { time: 13000, action: 'showChatMessage', messageId: 4 },
+            { time: 16000, action: 'showChatMessage', messageId: 5 },
+            { time: 19000, action: 'showChatMessage', messageId: 6 },
+            { time: 22000, action: 'showChatMessage', messageId: 7 },
+            
+            // ID Scan and OCR starts
+            { time: 25000, action: 'showChatMessage', messageId: 8 },
+            { time: 28000, action: 'showChatMessage', messageId: 9 },
+            { time: 28100, action: 'startProcess', process: 'ocrCheck' },
+            { time: 28100, action: 'incrementDataSource', source: 'docs', amount: 1 },
+            { time: 28100, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 28100, action: 'updatePassportCard', status: 'verifying' },
+            { time: 28100, action: 'showPassportNumber' },
+            { time: 28100, action: 'updateDOBCard' },
+            { time: 28100, action: 'updateDOBCardAmber' },
+            { time: 32000, action: 'completeProcess', process: 'ocrCheck' },
+            { time: 32000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 32000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 32000, action: 'updatePassportCard', status: 'verified' },
+            { time: 32000, action: 'updateDOBCardGreen' },
+            
+            // After OCR: Start Sanctions, PEP, Media checks
+            { time: 33000, action: 'startProcess', process: 'sanctionsCheck' },
+            { time: 33000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 33000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 33000, action: 'startProcess', process: 'pepCheck' },
+            { time: 33000, action: 'incrementDataSource', source: 'dbs', amount: 1 },
+            { time: 33000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 33000, action: 'startProcess', process: 'mediaCheck' },
+            { time: 33000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 33000, action: 'incrementUnityCatalog', amount: 2 },
+            
+            { time: 34000, action: 'showChatMessage', messageId: 10 },
+            
+            { time: 38000, action: 'completeProcess', process: 'sanctionsCheck' },
+            { time: 38000, action: 'incrementDataSource', source: 'dbs', amount: 1 },
+            { time: 38000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 39000, action: 'completeProcess', process: 'pepCheck' },
+            { time: 39000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 39000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 40000, action: 'completeProcess', process: 'mediaCheck' },
+            { time: 40000, action: 'incrementDataSource', source: 'dbs', amount: 1 },
+            { time: 40000, action: 'incrementUnityCatalog', amount: 2 },
+            
+            // Address upload
+            { time: 41000, action: 'showChatMessage', messageId: 11 },
+            { time: 45000, action: 'showChatMessage', messageId: 12 },
+            { time: 48000, action: 'showChatMessage', messageId: 13 },
+            { time: 49000, action: 'incrementDataSource', source: 'docs', amount: 1 },
+            { time: 49000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 49000, action: 'updateAddressCard', status: 'uploading' },
+            { time: 49000, action: 'startProcess', process: 'ocrCheck' },
+            
+            // Address verified FIRST
+            { time: 52000, action: 'completeProcess', process: 'ocrCheck' },
+            { time: 52000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 52000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 52000, action: 'updateAddressCard', status: 'verified' },
+            
+            { time: 53000, action: 'showChatMessage', messageId: 14 },
+            
+            // THEN trigger Fraud and AML checks (AFTER "Address Verified!" message)
+            { time: 54000, action: 'startProcess', process: 'fraudCheck' },
+            { time: 54000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 54000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 54000, action: 'startProcess', process: 'amlCheck' },
+            { time: 54000, action: 'incrementDataSource', source: 'models', amount: 1 },
+            { time: 54000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 57000, action: 'completeProcess', process: 'fraudCheck' },
+            { time: 57000, action: 'incrementDataSource', source: 'dbs', amount: 1 },
+            { time: 57000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 58000, action: 'completeProcess', process: 'amlCheck' },
+            { time: 58000, action: 'incrementDataSource', source: 'models', amount: 1 },
+            { time: 58000, action: 'incrementUnityCatalog', amount: 2 },
+            
+            // Customer Risk is last  
+            { time: 55000, action: 'showChatMessage', messageId: 15 },
+            { time: 56000, action: 'startProcess', process: 'customerRisk' },
+            { time: 56000, action: 'incrementDataSource', source: 'models', amount: 1 },
+            { time: 56000, action: 'incrementUnityCatalog', amount: 2 },
+            
+            // Account opening (timer ends here)
+            { time: 59000, action: 'completeProcess', process: 'customerRisk' },
+            { time: 59000, action: 'incrementDataSource', source: 'apis', amount: 1 },
+            { time: 59000, action: 'incrementUnityCatalog', amount: 2 },
+            { time: 59000, action: 'showRiskAssessment' },
+            { time: 59000, action: 'showCompletionMessage' },
+            { time: 59000, action: 'showFasterPercentage' },
+            { time: 59000, action: 'showChatMessage', messageId: 16 },
+            { time: 59500, action: 'showSMEButton' },
+            { time: 60000, action: 'showChatMessage', messageId: 17 },
+            { time: 60500, action: 'showInvestmentButton' },
+            
+            // Closing conversation (after timer ends)
+            { time: 62000, action: 'showChatMessage', messageId: 18 },
+            { time: 64000, action: 'showChatMessage', messageId: 19 },
+            { time: 65000, action: 'showChatMessage', messageId: 20 }
+        ];
+
+        // Chat messages data - Updated with name asking
+        const messages = [
+            { type: 'ai', text: 'Hello! 👋 Welcome to BankBricks.<br>To get started, what is your full name?' },
+            { type: 'user', text: 'Dirk van Dijk' },
+            { type: 'ai', text: 'Great! Can I call you Dirk?' },
+            { type: 'user', text: 'Yes, that\'s fine!' },
+            { type: 'ai', text: 'Perfect, Dirk! What type of account would you like to open today?' },
+            { 
+                type: 'ai-choices', 
+                text: '<div class="space-y-2 text-sm"><div class="flex items-center gap-2 p-2 bg-white bg-opacity-10 rounded-lg"><span class="w-5 h-5 border-2 border-white rounded flex items-center justify-center text-xs">○</span><span>Personal Current Account</span></div><div class="flex items-center gap-2 p-2 bg-white bg-opacity-10 rounded-lg"><span class="w-5 h-5 border-2 border-white rounded flex items-center justify-center text-xs">○</span><span>SME Business Account</span></div><div class="flex items-center gap-2 p-2 bg-white bg-opacity-10 rounded-lg"><span class="w-5 h-5 border-2 border-white rounded flex items-center justify-center text-xs">○</span><span>Investment Account</span></div></div>'
+            },
+            { 
+                type: 'user-choices', 
+                text: '<div class="space-y-2 text-sm"><div class="flex items-center gap-2 p-2 bg-green-600 bg-opacity-40 rounded-lg border border-green-400"><span class="w-5 h-5 bg-databricks-lava rounded flex items-center justify-center text-xs">✓</span><span>SME Business Account</span></div><div class="flex items-center gap-2 p-2 bg-green-600 bg-opacity-40 rounded-lg border border-green-400"><span class="w-5 h-5 bg-databricks-lava rounded flex items-center justify-center text-xs">✓</span><span>Investment Account</span></div></div>'
+            },
+            { type: 'ai', text: 'Excellent choice! I\'ll set those up for you.' },
+            { type: 'ai', text: 'First, let\'s verify your identity. Please scan your passport using your camera.' },
+            { type: 'user', text: 'Done! Just scanned it. 📄', hasIcon: true },
+            { type: 'ai', text: 'Great! Verifying your document now...' },
+            { type: 'ai-success', text: '✓ Identity Verified!<br><span class="text-xs opacity-90">Your passport has been validated.</span>' },
+            { type: 'ai', text: 'Perfect! One more step - please upload a Proof of Address document.<br><span class="text-xs text-blue-200">(Recent Utility Bill or Bank Statement)</span>' },
+            { type: 'user', text: 'Sure, uploading it now... 📄', hasIcon: true },
+            { type: 'ai-success', text: '✓ Address Verified!<br><span class="text-xs opacity-90">Document accepted.</span>' },
+            { type: 'ai', text: 'Processing your accounts...' },
+            { type: 'ai-success', text: '✓ Your SME Business Account has been opened!' },
+            { type: 'ai-success', text: '✓ Your Investment Account has been opened!' },
+            { type: 'user', text: 'That was incredibly easy. Thank you! 🙌' },
+            { type: 'ai', text: 'You\'re welcome, Dirk! Can I help you with anything else today?' },
+            { type: 'user', text: 'No, that\'s all. Thanks!' }
+        ];
+
+        // UI Elements
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressTime = document.getElementById('progressTime');
+        const chatContainer = document.getElementById('chatContainer');
+        const onboardingTime = document.getElementById('onboardingTime');
+        const processingTime = document.getElementById('processingTime');
+
+        // Clear existing static chat messages
+        chatContainer.innerHTML = '';
+
+        function showChatMessage(messageId) {
+            if (chatMessages.includes(messageId)) return;
+            chatMessages.push(messageId);
+            
+            const msg = messages[messageId];
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble flex ${msg.type.includes('user') ? 'justify-end' : 'justify-start'}`;
+            bubble.style.opacity = '0';
+            
+            // Handle different message types
+            let bgClass, roundClass, maxWidth;
+            
+            if (msg.type === 'ai-success') {
+                bgClass = 'bg-green-600';
+                roundClass = 'rounded-tl-sm';
+                maxWidth = 'max-w-[75%]';
+            } else if (msg.type.includes('user')) {
+                bgClass = 'bg-gray-700';
+                roundClass = 'rounded-tr-sm';
+                maxWidth = 'max-w-[75%]';
+            } else if (msg.type === 'ai-choices' || msg.type === 'user-choices') {
+                bgClass = msg.type === 'ai-choices' ? 'bg-[#1B3139]' : 'bg-gray-700';
+                roundClass = msg.type === 'ai-choices' ? 'rounded-tl-sm' : 'rounded-tr-sm';
+                maxWidth = 'max-w-[85%]'; // Wider for choice buttons
+            } else {
+                bgClass = 'bg-[#1B3139]';
+                roundClass = 'rounded-tl-sm';
+                maxWidth = 'max-w-[75%]';
+            }
+            
+            bubble.innerHTML = `
+                <div class="${bgClass} rounded-2xl ${roundClass} p-3 ${maxWidth}">
+                    <div class="text-sm text-white">${msg.text}</div>
+                </div>
+            `;
+            
+            chatContainer.appendChild(bubble);
+            
+            // Animate in
+            setTimeout(() => {
+                bubble.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                bubble.style.opacity = '1';
+            }, 50);
+            
+            // Auto-scroll to bottom
+            setTimeout(() => {
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
+        }
+
+        function incrementDataSource(source, amount) {
+            dataSourceCounts[source] += amount;
+            const elementId = source === 'apis' ? 'apiCount' : 
+                            source === 'models' ? 'modelCount' :
+                            source === 'dbs' ? 'dbCount' : 'docCount';
+            document.getElementById(elementId).textContent = dataSourceCounts[source];
+        }
+
+        function incrementUnityCatalog(amount = 1) {
+            unityCatalogCount += amount;
+            document.getElementById('unityCatalogCount').textContent = unityCatalogCount;
+        }
+
+        function updateDOBCardAmber() {
+            const dobCard = document.getElementById('dobCard');
+            dobCard.className = 'data-card bg-dark-panel border border-yellow-500 rounded-lg p-4';
+        }
+
+        function updateDOBCardGreen() {
+            const dobCard = document.getElementById('dobCard');
+            dobCard.className = 'data-card bg-dark-panel border border-green-500 rounded-lg p-4';
+        }
+
+        function showFasterPercentage() {
+            // Calculate percentage: 1 - (onboarding time / 2 days)
+            // Using 2 days = 172800 seconds, onboarding time in seconds
+            const onboardingSeconds = currentTime / 1000;
+            const manualKYCSeconds = 2 * 24 * 60 * 60; // 2 days in seconds
+            const percentage = ((1 - (onboardingSeconds / manualKYCSeconds)) * 100).toFixed(4);
+            
+            document.getElementById('fasterValue').textContent = `${percentage}%`;
+            document.getElementById('fasterPercentage').style.opacity = '1';
+        }
+
+        function updatePassportCard(status) {
+            const card = document.getElementById('passportCard');
+            if (!card) {
+                console.error('Passport card not found');
+                return;
+            }
+            
+            const textDiv = document.getElementById('passportNumber');
+            const statusDivs = card.querySelectorAll('.text-xs');
+            const statusDiv = statusDivs && statusDivs.length > 0 ? statusDivs[0] : null;
+            
+            if (!statusDiv) {
+                console.error('Status div not found in passport card');
+                return;
+            }
+            
+            if (status === 'uploading') {
+                card.className = 'data-card bg-dark-panel border border-yellow-500 rounded-lg p-4';
+                statusDiv.className = 'text-xs text-yellow-400 mt-1';
+                statusDiv.textContent = '⏳ Uploading...';
+            } else if (status === 'verifying') {
+                card.className = 'data-card bg-dark-panel border border-yellow-500 rounded-lg p-4';
+                statusDiv.className = 'text-xs text-yellow-400 mt-1';
+                statusDiv.textContent = '⏳ Verifying ID...';
+            } else if (status === 'verified') {
+                card.className = 'data-card bg-dark-panel border border-green-500 rounded-lg p-4';
+                if (textDiv) {
+                    textDiv.className = 'text-white font-mono';
+                    textDiv.style.display = 'block';
+                }
+                statusDiv.className = 'text-xs text-green-400 mt-1';
+                statusDiv.textContent = '✓ Verified';
+            }
+        }
+
+        function updateAddressCard(status) {
+            const card = document.getElementById('addressCard');
+            const statusDiv = card.querySelectorAll('.text-xs')[1];
+            
+            if (status === 'uploading') {
+                card.className = 'data-card bg-dark-panel border border-yellow-500 rounded-lg p-4';
+                statusDiv.className = 'text-yellow-400 text-xs';
+                statusDiv.textContent = '⏳ Uploading...';
+            } else if (status === 'verified') {
+                card.className = 'data-card bg-dark-panel border border-green-500 rounded-lg p-4';
+                statusDiv.className = 'text-green-400 text-xs';
+                statusDiv.textContent = '✓ Verified';
+            }
+        }
+
+        function showRiskAssessment() {
+            document.getElementById('riskAssessment').style.display = 'block';
+        }
+
+        function showCompletionMessage() {
+            document.getElementById('completionMessage').style.display = 'block';
+        }
+
+        function showSMEButton() {
+            document.getElementById('smeButton').style.display = 'flex';
+        }
+
+        function showInvestmentButton() {
+            document.getElementById('investmentButton').style.display = 'flex';
+        }
+
+        function updateNameCard() {
+            const card = document.getElementById('nameCard');
+            const nameDiv = card.querySelector('.text-gray-500');
+            
+            // Update card border to green
+            card.className = 'data-card bg-dark-panel border border-green-500 rounded-lg p-4';
+            
+            // Add checkmark
+            const header = card.querySelector('.flex');
+            if (!header.querySelector('svg')) {
+                const checkmark = document.createElement('svg');
+                checkmark.className = 'w-4 h-4 text-green-400 checkmark-animation';
+                checkmark.setAttribute('fill', 'currentColor');
+                checkmark.setAttribute('viewBox', '0 0 20 20');
+                checkmark.innerHTML = '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>';
+                header.appendChild(checkmark);
+            }
+            
+            // Update name
+            nameDiv.className = 'text-white font-semibold';
+            nameDiv.textContent = 'Dirk van Dijk';
+        }
+
+        function showPassportNumber() {
+            document.getElementById('passportNumber').style.display = 'block';
+        }
+
+        function updateDOBCard() {
+            const dobCard = document.getElementById('dobCard');
+            const dobDiv = dobCard.querySelector('.text-gray-500');
+            
+            // Update card border to green
+            dobCard.className = 'data-card bg-dark-panel border border-green-500 rounded-lg p-4';
+            
+            // Update DOB with masked date (only show year)
+            dobDiv.className = 'text-white font-semibold';
+            dobDiv.textContent = '****-**-1980';
+        }
+
+        function updateProcessState(processId, state) {
+            const element = document.getElementById(processId);
+            if (!element) return;
+            
+            const svg = element.querySelector('svg');
+            const span = element.querySelector('span');
+            const statusSpan = element.querySelectorAll('span')[1];
+            
+            // Color definitions
+            const colors = {
+                idle: { border: 'border-gray-600', text: 'text-gray-500', status: '--' },
+                working: { border: 'border-yellow-500', text: 'text-yellow-500', status: '⏳' },
+                complete: { border: 'border-green-500', text: 'text-green-400', status: '✓' }
+            };
+            
+            const color = colors[state];
+            
+            // Update border
+            element.className = element.className.replace(/border-\w+-\d+/, color.border);
+            
+            // Update icon color - SVG className is an object, need to use classList or getAttribute
+            if (svg) {
+                // Remove old color classes
+                svg.classList.remove('text-gray-500', 'text-yellow-500', 'text-green-400');
+                // Add new color class
+                svg.classList.add(color.text);
+            }
+            
+            // Update text color
+            if (span) {
+                span.className = span.className.replace(/text-\w+-\d+/, color.text);
+            }
+            
+            // Update status
+            if (statusSpan) {
+                statusSpan.className = statusSpan.className.replace(/text-\w+-\d+/, color.text);
+                statusSpan.textContent = color.status;
+            }
+            
+            // Add pulse animation for working state
+            if (state === 'working') {
+                element.classList.add('backend-pulse');
+            } else {
+                element.classList.remove('backend-pulse');
+            }
+        }
+
+        function startProcess(process) {
+            processStates[process] = 'working';
+            updateProcessState(process, 'working');
+        }
+
+        function completeProcess(process) {
+            processStates[process] = 'complete';
+            updateProcessState(process, 'complete');
+        }
+
+        function processTimelineEvents() {
+            timeline.forEach(event => {
+                if (event.time <= currentTime && !event.executed) {
+                    event.executed = true;
+                    
+                    try {
+                        switch(event.action) {
+                        case 'showChatMessage':
+                            showChatMessage(event.messageId);
+                            break;
+                        case 'startProcess':
+                            startProcess(event.process);
+                            break;
+                        case 'completeProcess':
+                            completeProcess(event.process);
+                            break;
+                        case 'incrementDataSource':
+                            incrementDataSource(event.source, event.amount);
+                            break;
+                        case 'updatePassportCard':
+                            updatePassportCard(event.status);
+                            break;
+                        case 'updateAddressCard':
+                            updateAddressCard(event.status);
+                            break;
+                        case 'showRiskAssessment':
+                            showRiskAssessment();
+                            break;
+                        case 'showCompletionMessage':
+                            showCompletionMessage();
+                            break;
+                        case 'showSMEButton':
+                            showSMEButton();
+                            break;
+                        case 'showInvestmentButton':
+                            showInvestmentButton();
+                            break;
+                        case 'updateNameCard':
+                            updateNameCard();
+                            break;
+                        case 'showPassportNumber':
+                            showPassportNumber();
+                            break;
+                        case 'updateDOBCard':
+                            updateDOBCard();
+                            break;
+                        case 'updateDOBCardAmber':
+                            updateDOBCardAmber();
+                            break;
+                        case 'updateDOBCardGreen':
+                            updateDOBCardGreen();
+                            break;
+                        case 'incrementUnityCatalog':
+                            incrementUnityCatalog(event.amount);
+                            break;
+                        case 'showFasterPercentage':
+                            showFasterPercentage();
+                            break;
+                        default:
+                            console.warn(`Unknown action: ${event.action}`);
+                    }
+                    } catch (error) {
+                        // Log errors but continue execution
+                        console.error(`Error executing event ${event.action}:`, error);
+                    }
+                }
+            });
+        }
+
+        function updateProgress() {
+            // Cap display at TOTAL_DURATION even if currentTime exceeds it
+            const displayTime = Math.min(currentTime, TOTAL_DURATION);
+            const progress = (displayTime / TOTAL_DURATION) * 100;
+            progressBar.style.width = `${progress}%`;
+            
+            const seconds = Math.floor(displayTime / 1000);
+            progressTime.textContent = `${seconds}s`;
+            
+            // Onboarding time matches progress exactly
+            onboardingTime.textContent = `${seconds}s`;
+            
+            // Processing time is 20% less than overall time
+            const processingSeconds = Math.floor((displayTime * 0.8) / 1000);
+            processingTime.textContent = `${processingSeconds}s`;
+        }
+
+        function animate(timestamp) {
+            if (isPaused) return; // Don't animate if paused
+            
+            if (lastFrameTime === 0) {
+                lastFrameTime = timestamp;
+            }
+            
+            const deltaTime = timestamp - lastFrameTime;
+            lastFrameTime = timestamp;
+            
+            currentTime += deltaTime;
+            
+            // Disable controls once timer completes at TOTAL_DURATION
+            // but continue animation to show closing messages
+            if (currentTime >= TOTAL_DURATION && currentTime < TOTAL_DURATION + 100) {
+                playBtn.disabled = true;
+                pauseBtn.disabled = true;
+            }
+            
+            // Stop completely after all messages (65 seconds)
+            if (currentTime >= 65000) {
+                currentTime = 65000;
+                updateProgress();
+                processTimelineEvents();
+                return;
+            }
+            
+            updateProgress();
+            processTimelineEvents();
+            
+            // Continue animation loop
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function play() {
+            if (currentTime >= 65000) return; // Can't play after demo completely ends
+            
+            isPaused = false;
+            playBtn.disabled = true;
+            pauseBtn.disabled = false;
+            lastFrameTime = 0;
+            
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function pause() {
+            isPaused = true;
+            playBtn.disabled = false;
+            pauseBtn.disabled = true;
+            
+            // Stop the animation loop
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            lastFrameTime = 0; // Reset for next play
+        }
+
+        function restart() {
+            // Cancel animation
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            
+            // Reset all state
+            currentTime = 0;
+            isPaused = true;
+            lastFrameTime = 0;
+            chatMessages = [];
+            dataSourceCounts = { apis: 0, models: 0, dbs: 0, docs: 0 };
+            unityCatalogCount = 0;
+            
+            // Reset timeline
+            timeline.forEach(event => event.executed = false);
+            
+            // Reset all processes to idle
+            Object.keys(processStates).forEach(process => {
+                processStates[process] = 'idle';
+                updateProcessState(process, 'idle');
+            });
+            
+            // Clear chat
+            chatContainer.innerHTML = '';
+            
+            // Reset data sources
+            document.getElementById('apiCount').textContent = '0';
+            document.getElementById('modelCount').textContent = '0';
+            document.getElementById('dbCount').textContent = '0';
+            document.getElementById('docCount').textContent = '0';
+            document.getElementById('unityCatalogCount').textContent = '0';
+            
+            // Hide faster percentage
+            document.getElementById('fasterPercentage').style.opacity = '0';
+            document.getElementById('fasterValue').textContent = '99.9%';
+            
+            // Reset name card
+            const nameCard = document.getElementById('nameCard');
+            nameCard.className = 'data-card bg-dark-panel border border-gray-700 rounded-lg p-4';
+            const nameHeader = nameCard.querySelector('.flex');
+            const nameCheckmark = nameHeader.querySelector('svg');
+            if (nameCheckmark) nameCheckmark.remove();
+            nameCard.querySelector('.text-white, .text-gray-500').className = 'text-gray-500 font-semibold';
+            nameCard.querySelector('.text-gray-500').textContent = '--';
+            
+            // Reset DOB card
+            const dobCard = document.getElementById('dobCard');
+            dobCard.className = 'data-card bg-dark-panel border border-gray-700 rounded-lg p-4';
+            dobCard.querySelector('.text-white, .text-gray-500').className = 'text-gray-500 font-semibold';
+            dobCard.querySelector('.text-gray-500').textContent = '--';
+            
+            // Reset passport card
+            const passportCard = document.getElementById('passportCard');
+            passportCard.className = 'data-card bg-dark-panel border border-gray-600 rounded-lg p-4';
+            document.getElementById('passportNumber').style.display = 'none';
+            document.getElementById('passportNumber').className = 'text-gray-500 font-mono';
+            document.getElementById('passportStatus').className = 'text-xs text-gray-500 mt-1';
+            document.getElementById('passportStatus').textContent = '📄 Awaiting Upload';
+            
+            const addressCard = document.getElementById('addressCard');
+            addressCard.className = 'data-card bg-dark-panel border border-gray-600 rounded-lg p-4';
+            addressCard.querySelectorAll('.text-xs')[1].className = 'text-gray-500 text-xs';
+            addressCard.querySelectorAll('.text-xs')[1].textContent = '📄 Awaiting Upload';
+            
+            // Hide risk assessment and completion message
+            document.getElementById('riskAssessment').style.display = 'none';
+            document.getElementById('completionMessage').style.display = 'none';
+            document.getElementById('smeButton').style.display = 'none';
+            document.getElementById('investmentButton').style.display = 'none';
+            
+            // Reset progress
+            updateProgress();
+            
+            // Reset buttons
+            playBtn.disabled = false;
+            pauseBtn.disabled = true;
+        }
+
+        // Event listeners
+        playBtn.addEventListener('click', play);
+        pauseBtn.addEventListener('click', pause);
+        restartBtn.addEventListener('click', restart);
+
+        // Initialize - don't auto-start, wait for user to click play
+    </script>
+
+</body>
+</html>
+

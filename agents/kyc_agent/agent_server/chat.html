@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BankBricks KYC Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'db-navy': '#0B2026',
+        'db-lava': '#FF3621',
+        'db-panel': '#1B3139',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #0B2026; font-family: 'DM Sans', sans-serif; }
+  code, .font-mono { font-family: 'DM Mono', monospace; }
+
+  .phone-mockup {
+    width: 420px; height: 780px; border-radius: 40px;
+    background: linear-gradient(to bottom, #0B2026, #0d2832);
+    border: 14px solid #0B2026;
+    box-shadow: 0 30px 80px rgba(0,0,0,.9), 0 0 0 2px rgba(238,237,233,.1);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .phone-notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 180px; height: 30px; background: #000; border-radius: 0 0 20px 20px; z-index: 10;
+  }
+
+  .chat-bubble {
+    animation: slideInChat .5s ease-out forwards; opacity: 0;
+  }
+  @keyframes slideInChat {
+    from { opacity: 0; transform: translateY(16px) scale(.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .typing-indicator { display: inline-flex; align-items: center; padding: 10px 14px; background: #FF3621; border-radius: 18px; border-bottom-left-radius: 4px; }
+  .typing-indicator span { height: 8px; width: 8px; background: rgba(255,255,255,.8); border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.4s infinite; }
+  .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+
+  #chat-area::-webkit-scrollbar { width: 5px; }
+  #chat-area::-webkit-scrollbar-track { background: rgba(238,237,233,.05); border-radius: 3px; }
+  #chat-area::-webkit-scrollbar-thumb { background: rgba(238,237,233,.15); border-radius: 3px; }
+
+  .pick-btn {
+    padding: 8px 14px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.08); color: #fff; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all .15s; user-select: none;
+  }
+  .pick-btn:hover { background: rgba(255,255,255,.15); }
+  .pick-btn.selected { background: #FF3621; border-color: #FF3621; }
+  .pick-confirm {
+    padding: 8px 20px; border-radius: 10px; border: none;
+    background: rgba(255,255,255,.1); color: rgba(255,255,255,.4); font-size: 13px; font-weight: 600;
+    cursor: default; transition: all .15s;
+  }
+  .pick-confirm.active { background: #FF3621; color: #fff; cursor: pointer; }
+  .pick-confirm.active:hover { background: #e02e1a; }
+
+  .completion-card {
+    animation: slideInChat .6s ease-out forwards; opacity: 0;
+  }
+  .acct-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 10px; border: none;
+    font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;
+    transition: all .15s;
+  }
+  .acct-btn:hover { filter: brightness(1.15); transform: scale(1.02); }
+
+  /* ── Side panel styles ─────────────────────────────────── */
+  .side-panel {
+    background: rgba(27, 49, 57, 0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+  }
+  .side-panel h3 {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(255,255,255,0.4); margin-bottom: 12px; padding: 0 4px;
+  }
+
+  /* Data card (left panel) */
+  .data-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 12px 14px;
+    transition: all 0.4s ease;
+    animation: dataCardIn 0.5s ease-out forwards;
+    opacity: 0;
+  }
+  .data-card.processing {
+    border-color: rgba(234, 179, 8, 0.4);
+    animation: dataPulse 2s ease-in-out infinite;
+  }
+  .data-card.verified {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.06);
+  }
+  .data-card .card-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: rgba(255,255,255,0.35); margin-bottom: 4px;
+  }
+  .data-card .card-value {
+    font-size: 14px; font-weight: 600; color: #fff;
+    min-height: 20px;
+  }
+  .data-card .card-value.empty {
+    color: rgba(255,255,255,0.15); font-weight: 400; font-style: italic; font-size: 12px;
+  }
+  .data-card .card-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.3);
+    margin-top: 6px;
+  }
+  .data-card.processing .card-status { color: rgb(234, 179, 8); }
+  .data-card.verified .card-status { color: rgb(34, 197, 94); }
+
+  @keyframes dataCardIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes dataPulse {
+    0%, 100% { border-color: rgba(234, 179, 8, 0.2); box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+    50%      { border-color: rgba(234, 179, 8, 0.5); box-shadow: 0 0 12px 0 rgba(234, 179, 8, 0.1); }
+  }
+
+  /* Backend check row (right panel) */
+  .check-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.4s ease;
+    animation: checkRowIn 0.4s ease-out forwards;
+    opacity: 0;
+  }
+  .check-row.working {
+    border-color: rgba(234, 179, 8, 0.3);
+    animation: checkRowIn 0.4s ease-out forwards, backendPulse 2s ease-in-out infinite 0.4s;
+  }
+  .check-row.complete {
+    border-color: rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.05);
+    animation: none; opacity: 1;
+  }
+  .check-row .check-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.3);
+    transition: all 0.3s ease;
+  }
+  .check-row.working .check-icon {
+    background: rgba(234, 179, 8, 0.15); color: rgb(234, 179, 8);
+  }
+  .check-row.complete .check-icon {
+    background: rgba(34, 197, 94, 0.15); color: rgb(34, 197, 94);
+    animation: checkPop 0.4s ease-out;
+  }
+  .check-row .check-label {
+    font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.4);
+    transition: color 0.3s;
+  }
+  .check-row.working .check-label { color: rgb(234, 179, 8); }
+  .check-row.complete .check-label { color: rgba(255,255,255,0.8); }
+  .check-row .check-status {
+    margin-left: auto; font-size: 10px; font-weight: 600; letter-spacing: 0.03em;
+    color: rgba(255,255,255,0.2); transition: color 0.3s;
+  }
+  .check-row.working .check-status { color: rgb(234, 179, 8); }
+  .check-row.complete .check-status { color: rgb(34, 197, 94); }
+
+  @keyframes checkRowIn {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes backendPulse {
+    0%, 100% { border-color: rgba(234, 179, 8, 0.15); }
+    50%      { border-color: rgba(234, 179, 8, 0.4); }
+  }
+  @keyframes checkPop {
+    0%   { transform: scale(0.5) rotate(-10deg); opacity: 0; }
+    60%  { transform: scale(1.2) rotate(3deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  /* Risk assessment card */
+  .risk-card {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    border-radius: 12px; padding: 14px;
+    animation: slideInChat 0.6s ease-out forwards; opacity: 0;
+  }
+
+  /* Responsive: hide side panels on small screens */
+  @media (max-width: 1200px) {
+    .side-panel { display: none !important; }
+    .main-grid { display: flex !important; justify-content: center; }
+  }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+
+<div class="flex flex-col items-center w-full pt-6 px-4">
+  <!-- Header -->
+  <div class="text-center mb-6">
+    <h1 class="text-3xl font-bold text-white mb-1">Seamless KYC Onboarding</h1>
+    <p class="text-gray-400 text-sm">BankBricks AI-Powered Customer Onboarding</p>
+  </div>
+
+  <!-- 3-column grid -->
+  <div class="main-grid grid grid-cols-12 gap-6 w-full max-w-[1400px] items-start">
+
+    <!-- LEFT PANEL: Customer Data (hidden for now) -->
+    <div class="col-span-3 side-panel p-5 sticky top-6 hidden">
+      <h3>Customer Data</h3>
+      <div class="space-y-3" id="data-cards">
+        <div class="data-card" id="card-name" style="animation-delay:0s">
+          <div class="card-label">Full Name</div>
+          <div class="card-value empty">Awaiting...</div>
+          <div class="card-status"><span class="status-dot">&#9679;</span> Pending</div>
+        </div>
+        <div class="data-card" id="card-dob" style="animation-delay:0.1s">
+          <div class="card-label">Date of Birth</div>
+          <div class="card-value empty">Awaiting...</div>
+          <div class="card-status"><span class="status-dot">&#9679;</span> Pending</div>
+        </div>
+        <div class="data-card" id="card-accounts" style="animation-delay:0.2s">
+          <div class="card-label">Account Types</div>
+          <div class="card-value empty">Awaiting...</div>
+          <div class="card-status"><span class="status-dot">&#9679;</span> Pending</div>
+        </div>
+        <div class="data-card" id="card-identity" style="animation-delay:0.3s">
+          <div class="card-label">Proof of Identity</div>
+          <div class="card-value empty">Awaiting...</div>
+          <div class="card-status"><span class="status-dot">&#9679;</span> Pending</div>
+        </div>
+        <div class="data-card" id="card-address" style="animation-delay:0.4s">
+          <div class="card-label">Proof of Address</div>
+          <div class="card-value empty">Awaiting...</div>
+          <div class="card-status"><span class="status-dot">&#9679;</span> Pending</div>
+        </div>
+      </div>
+
+      <!-- Processing time -->
+      <div id="processing-time" class="mt-4 pt-3 border-t border-white/5 hidden">
+        <div class="text-[10px] uppercase tracking-wider text-white/30 font-semibold mb-1">Processing Time</div>
+        <div class="text-xl font-bold text-white font-mono" id="timer-display">0.0s</div>
+      </div>
+    </div>
+
+    <!-- CENTER: Phone -->
+    <div class="col-span-12 flex justify-center">
+      <div class="phone-mockup">
+        <div class="phone-notch"></div>
+
+        <!-- App header inside phone -->
+        <div class="flex-shrink-0 text-center pt-12 pb-4 px-6">
+          <div class="w-14 h-14 bg-white rounded-2xl mx-auto mb-2 flex items-center justify-center p-2">
+            <svg viewBox="0 0 24 24" class="w-8 h-8 fill-[#0B2026]"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+          </div>
+          <h2 class="text-lg font-bold text-white">BankBricks</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Your AI Banking Assistant</p>
+        </div>
+
+        <!-- Chat messages -->
+        <div id="chat-area" class="flex-1 overflow-y-auto px-4 pb-2 space-y-3">
+          <div id="typing-el" class="flex justify-start" style="display:none;">
+            <div class="typing-indicator"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+
+        <!-- Input bar -->
+        <div class="flex-shrink-0 px-4 pb-5 pt-2 border-t border-white/10">
+          <div class="flex gap-2">
+            <input id="input" type="text" placeholder="Type a message..."
+                   class="flex-1 bg-white/10 text-white text-sm rounded-full px-4 py-2.5 outline-none placeholder-gray-500 border border-white/10 focus:border-db-lava transition-colors" autocomplete="off">
+            <button id="send"
+                    class="bg-db-lava text-white text-sm font-medium rounded-full px-5 py-2.5 transition-opacity disabled:opacity-30">
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Backend Processing (hidden for now) -->
+    <div class="col-span-3 side-panel p-5 sticky top-6 hidden">
+      <h3>Backend Processing</h3>
+      <div class="space-y-2" id="backend-checks">
+        <div class="check-row" id="check-ocr" style="animation-delay:0s">
+          <div class="check-icon">&#128196;</div>
+          <div class="check-label">Document OCR</div>
+          <div class="check-status">IDLE</div>
+        </div>
+        <div class="check-row" id="check-sanctions" style="animation-delay:0.05s">
+          <div class="check-icon">&#9888;</div>
+          <div class="check-label">Sanctions Check</div>
+          <div class="check-status">IDLE</div>
+        </div>
+        <div class="check-row" id="check-pep" style="animation-delay:0.1s">
+          <div class="check-icon">&#127963;</div>
+          <div class="check-label">PEP Screening</div>
+          <div class="check-status">IDLE</div>
+        </div>
+        <div class="check-row" id="check-fraud" style="animation-delay:0.15s">
+          <div class="check-icon">&#128274;</div>
+          <div class="check-label">Fraud Detection</div>
+          <div class="check-status">IDLE</div>
+        </div>
+        <div class="check-row" id="check-risk" style="animation-delay:0.2s">
+          <div class="check-icon">&#128202;</div>
+          <div class="check-label">Customer Risk</div>
+          <div class="check-status">IDLE</div>
+        </div>
+        <div class="check-row" id="check-aml" style="animation-delay:0.25s">
+          <div class="check-icon">&#9989;</div>
+          <div class="check-label">AML Compliance</div>
+          <div class="check-status">IDLE</div>
+        </div>
+      </div>
+
+      <!-- Risk Assessment (appears after completion) -->
+      <div id="risk-result" class="hidden mt-4">
+        <div class="risk-card">
+          <div class="text-[10px] uppercase tracking-wider text-green-400/70 font-semibold mb-1">Risk Assessment</div>
+          <div class="text-2xl font-bold text-green-400">LOW RISK</div>
+          <div class="text-xs text-green-400/60 mt-1">All checks passed successfully</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="text-xs text-gray-500 mt-4 mb-6">Live Agent &mdash; Powered by Databricks</p>
+</div>
+
+<script>
+const chatArea  = document.getElementById("chat-area");
+const typingEl  = document.getElementById("typing-el");
+const inputEl   = document.getElementById("input");
+const sendBtn   = document.getElementById("send");
+
+let threadId = crypto.randomUUID();
+let busy = false;
+let selectedAccounts = [];
+let userName = null;       /* Set from user's first real message */
+let conversationTurn = 0;  /* 0 = welcome, 1 = user gives name, 2 = confirm, ... */
+
+/* ── helpers ─────────────────────────────────────────────── */
+
+function isSuccessMsg(text) {
+  return /verified!|has been opened|all set|all clear|account.*created|document accepted|completed our checks/i.test(text);
+}
+
+function addMsg(role, html, extraClass) {
+  const wrap = document.createElement("div");
+  wrap.className = "chat-bubble flex " + (role === "user" ? "justify-end" : "justify-start");
+
+  let bg, round;
+  if (extraClass === "success") {
+    bg = "bg-green-600"; round = "rounded-tl-sm";
+  } else if (role === "user") {
+    bg = "bg-gray-700"; round = "rounded-tr-sm";
+  } else {
+    bg = "bg-db-panel"; round = "rounded-tl-sm";
+  }
+
+  const inner = document.createElement("div");
+  inner.className = `${bg} rounded-2xl ${round} p-3 max-w-[80%]`;
+  inner.innerHTML = `<div class="text-sm text-white">${html}</div>`;
+  wrap.appendChild(inner);
+
+  chatArea.insertBefore(wrap, typingEl);
+  scrollDown();
+  return inner;
+}
+
+function renderMd(md) {
+  return md
+    .split(/\n{2,}/).map(b => {
+      b = b.trim(); if (!b) return "";
+      if (/^[-*]\s/m.test(b)) {
+        return "<ul class='list-disc ml-4 space-y-0.5'>" +
+          b.split(/\n/).map(l => "<li>" + inline(l.replace(/^[-*]\s+/,"")) + "</li>").join("") + "</ul>";
+      }
+      return "<p>" + inline(b.replace(/\n/g,"<br>")) + "</p>";
+    }).join("");
+}
+function inline(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+          .replace(/`(.+?)`/g,"<code class='bg-white/10 px-1 rounded text-xs font-mono'>$1</code>");
+}
+
+function scrollDown() { chatArea.scrollTop = chatArea.scrollHeight; }
+
+async function splitIntoBubbles(fullText, origInner) {
+  fullText = fullText.replace(/<br\s*\/?>/gi, "\n");
+  let parts = fullText.split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+
+  if (parts.length <= 1) {
+    parts = fullText.split(/\n/).map(s => s.trim()).filter(Boolean);
+  }
+
+  if (parts.length <= 1) {
+    const transitions = /(?<=[.!])\s+(?=(?:First|Next|Now|Also|Perfect|Please|Great|One more|Let'?s|I'?ll also|For the demo|To get started|Processing|We'?ve|Your |✓|You'?re))/gi;
+    parts = fullText.split(transitions).map(s => s.trim()).filter(Boolean);
+  }
+
+  if (parts.length <= 1) {
+    if (isSuccessMsg(fullText)) {
+      origInner.classList.remove("bg-db-panel");
+      origInner.classList.add("bg-green-600");
+    }
+    return origInner;
+  }
+
+  let lastInner = origInner;
+  for (let i = 0; i < parts.length; i++) {
+    const para = parts[i];
+    if (i === 0) {
+      origInner.innerHTML = `<div class="text-sm text-white">${renderMd(para)}</div>`;
+      if (isSuccessMsg(para)) {
+        origInner.classList.remove("bg-db-panel");
+        origInner.classList.add("bg-green-600");
+      }
+    } else {
+      await delay(800);
+      const cls = isSuccessMsg(para) ? "success" : undefined;
+      lastInner = addMsg("assistant", renderMd(para), cls);
+    }
+  }
+  scrollDown();
+  return lastInner;
+}
+
+function setDisabled(v) {
+  busy = v;
+  inputEl.disabled = v;
+  sendBtn.disabled = v;
+  typingEl.style.display = v ? "flex" : "none";
+  scrollDown();
+}
+
+/* ── side panels ─────────────────────────────────────────── */
+
+function updateDataCard(cardId, state, value) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  card.classList.remove("processing", "verified");
+  if (state) card.classList.add(state);
+
+  const valEl = card.querySelector(".card-value");
+  if (value) {
+    valEl.textContent = value;
+    valEl.classList.remove("empty");
+  }
+
+  const statusEl = card.querySelector(".card-status");
+  if (state === "processing") {
+    statusEl.innerHTML = '<span class="status-dot">&#9679;</span> Processing...';
+  } else if (state === "verified") {
+    statusEl.innerHTML = '<span>&#10003;</span> Verified';
+  }
+}
+
+function updateCheck(checkId, state) {
+  const row = document.getElementById(checkId);
+  if (!row) return;
+  row.classList.remove("working", "complete");
+  row.classList.add(state);
+
+  const statusEl = row.querySelector(".check-status");
+  if (state === "working") {
+    statusEl.textContent = "RUNNING";
+  } else if (state === "complete") {
+    statusEl.textContent = "PASSED";
+    const icon = row.querySelector(".check-icon");
+    icon.innerHTML = "&#10003;";
+  }
+}
+
+function showRiskResult() {
+  document.getElementById("risk-result").classList.remove("hidden");
+}
+
+/* Timer */
+let timerInterval = null;
+let timerStart = null;
+function startTimer() {
+  const container = document.getElementById("processing-time");
+  const display = document.getElementById("timer-display");
+  container.classList.remove("hidden");
+  timerStart = Date.now();
+  timerInterval = setInterval(() => {
+    const elapsed = ((Date.now() - timerStart) / 1000).toFixed(1);
+    display.textContent = elapsed + "s";
+  }, 100);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+/* ── Tool-call-driven panel updates ─────────────────────── */
+
+/* Map tool names to backend check IDs */
+const TOOL_CHECK_MAP = {
+  "extract_kyc":              "check-ocr",
+  "extract_proof_of_address": "check-ocr",
+  "check_pep":                "check-pep",
+  "check_sanctions":          "check-sanctions",
+  "check_fraud":              "check-fraud",
+  "check_customer_risk":      "check-risk",
+  "create_account":           "check-aml",
+};
+
+/* Normalize UC function names: main__kyc_demo__check_pep → check_pep */
+function normToolName(name) {
+  return (name || "").replace(/^.*__/, "");
+}
+
+/* Set checks to "working" BEFORE the request starts (called when user sends passport/address) */
+function setChecksWorking(step) {
+  startTimer();
+  if (step === "identity") {
+    /* Passport step: OCR, sanctions, PEP, fraud will run */
+    updateDataCard("card-identity", "processing", "Verifying...");
+    const checks = ["check-ocr", "check-sanctions", "check-pep", "check-fraud"];
+    checks.forEach((id, i) => setTimeout(() => updateCheck(id, "working"), i * 300));
+  } else if (step === "address") {
+    /* Address step: OCR (reuse), customer risk, AML will run */
+    updateDataCard("card-address", "processing", "Verifying...");
+    const checks = ["check-risk", "check-aml"];
+    checks.forEach((id, i) => setTimeout(() => updateCheck(id, "working"), i * 300));
+  }
+}
+
+/* Process tool_calls from custom_outputs — stagger COMPLETIONS only */
+async function processToolCalls(toolCalls) {
+  if (!toolCalls || !toolCalls.length) return;
+
+  /* If timer not started yet (e.g. check_customer_risk on account selection), start it */
+  if (!timerStart) startTimer();
+
+  let completeDelay = 0;
+
+  for (const tc of toolCalls) {
+    const name = normToolName(tc.name);
+    const result = tc.result;
+
+    /* Extract data for left panel from tool results */
+    if (name === "extract_kyc" && result && typeof result === "object") {
+      const dob = result.date_of_birth;
+      if (dob) {
+        setTimeout(() => updateDataCard("card-dob", "verified", dob), completeDelay);
+      }
+      setTimeout(() => {
+        updateDataCard("card-identity", "verified", "Passport - Verified");
+      }, completeDelay);
+    }
+
+    if (name === "extract_proof_of_address" && result && typeof result === "object") {
+      setTimeout(() => {
+        updateDataCard("card-address", "verified", "Utility Bill - Verified");
+      }, completeDelay);
+    }
+
+    /* Complete the corresponding backend check */
+    const checkId = TOOL_CHECK_MAP[name];
+    if (checkId) {
+      /* Set to working first if not already (for tools triggered outside identity/address steps) */
+      const row = document.getElementById(checkId);
+      if (row && !row.classList.contains("working") && !row.classList.contains("complete")) {
+        updateCheck(checkId, "working");
+      }
+      setTimeout(() => updateCheck(checkId, "complete"), completeDelay + 400);
+      completeDelay += 500;
+    }
+  }
+
+  /* If create_account was called, show risk result after all animations */
+  const hasCreateAccount = toolCalls.some(tc => normToolName(tc.name) === "create_account");
+  if (hasCreateAccount) {
+    setTimeout(() => {
+      stopTimer();
+      showRiskResult();
+    }, completeDelay + 500);
+  }
+}
+
+/* ── streaming ───────────────────────────────────────────── */
+
+/* Returns { text, toolCalls } */
+async function streamRequest(userText, msgInner) {
+  let full = "";
+  let toolCalls = [];
+  const res = await fetch("/invocations", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      input: [{role:"user", content: userText}],
+      stream: true,
+      custom_inputs: {thread_id: threadId}
+    })
+  });
+  if (!res.ok) throw new Error(res.status + " " + res.statusText);
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream:true});
+    const lines = buf.split("\n"); buf = lines.pop();
+
+    for (const ln of lines) {
+      if (!ln.startsWith("data:")) continue;
+      const p = ln.slice(5).trim();
+      if (p === "[DONE]") continue;
+      let e; try { e = JSON.parse(p); } catch { continue; }
+
+      if (e.type === "response.output_text.delta" && e.delta) {
+        full += e.delta;
+        msgInner.innerHTML = `<div class="text-sm text-white">${renderMd(full)}</div>`;
+        scrollDown();
+      }
+      if (e.type === "response.output_item.done" && e.item) {
+        const c = e.item.content;
+        if (Array.isArray(c)) {
+          for (const part of c) if (part.type === "output_text" && part.text) full += part.text;
+          msgInner.innerHTML = `<div class="text-sm text-white">${renderMd(full)}</div>`;
+          scrollDown();
+        }
+        /* Extract thread_id and tool_calls from custom_outputs */
+        const co = e.item.custom_outputs;
+        if (co) {
+          if (co.thread_id) threadId = co.thread_id;
+          if (co.tool_calls) toolCalls = co.tool_calls;
+        }
+      }
+      if (e.type === "response.completed") {
+        const co = e.response?.custom_outputs;
+        if (co) {
+          if (co.thread_id) threadId = co.thread_id;
+          if (co.tool_calls) toolCalls = co.tool_calls;
+        }
+        /* Fallback: thread_id in metadata */
+        const tid = e.response?.metadata?.thread_id;
+        if (tid && !threadId) threadId = tid;
+      }
+    }
+  }
+  return { text: full, toolCalls };
+}
+
+/* ── account picker ──────────────────────────────────────── */
+
+const ACCOUNT_TYPES = ["Personal Current Account", "SME Business Account", "Investment Account"];
+
+function maybeShowAccountPicker(fullText, msgInner) {
+  const lower = fullText.toLowerCase();
+  if (!ACCOUNT_TYPES.every(a => lower.includes(a.toLowerCase()))) return;
+
+  const group = document.createElement("div");
+  group.className = "flex flex-wrap gap-2 mt-3";
+  const selected = new Set();
+
+  ACCOUNT_TYPES.forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "pick-btn";
+    btn.textContent = name;
+    btn.onclick = () => {
+      if (selected.has(name)) { selected.delete(name); btn.classList.remove("selected"); }
+      else { selected.add(name); btn.classList.add("selected"); }
+      confirm.className = "pick-confirm" + (selected.size ? " active" : "");
+    };
+    group.appendChild(btn);
+  });
+
+  const confirm = document.createElement("button");
+  confirm.className = "pick-confirm";
+  confirm.textContent = "Confirm selection";
+  confirm.onclick = () => {
+    if (!selected.size) return;
+    selectedAccounts = [...selected];
+    group.querySelectorAll(".pick-btn").forEach(b => { b.disabled = true; b.style.opacity = ".5"; b.style.cursor = "default"; });
+    confirm.remove();
+    updateDataCard("card-accounts", "verified", selectedAccounts.map(a => a.replace(/ Account$/,"")).join(", "));
+    sendMessage(selectedAccounts.join(", "));
+  };
+
+  const wrap = document.createElement("div");
+  wrap.className = "mt-2 space-y-2";
+  wrap.appendChild(group);
+  wrap.appendChild(confirm);
+  msgInner.appendChild(wrap);
+  scrollDown();
+}
+
+/* ── auto-responses (passport / address) ─────────────────── */
+
+let autoStep = 0;
+let pendingAutoReply = null;
+
+function detectAutoResponse(text) {
+  const l = text.toLowerCase();
+  if (autoStep === 0 && (l.includes("scan your passport") || l.includes("verify your identity") || l.includes("scan your id"))) {
+    return { step: 1, fileName: "\ud83d\udcf7 passport_scan.png", reply: "I just scanned my passport." };
+  }
+  if (autoStep === 1 && (l.includes("proof of address") || l.includes("upload a proof") || l.includes("address document") || l.includes("utility bill"))) {
+    return { step: 2, fileName: "\ud83d\udcc4 utility_bill.pdf", reply: "Here is my utility bill." };
+  }
+  return null;
+}
+
+function promptMockUpload(auto) {
+  pendingAutoReply = auto;
+  inputEl.value = auto.fileName;
+  inputEl.readOnly = true;
+  inputEl.classList.add("italic", "opacity-80");
+  setDisabled(false);
+  inputEl.focus();
+}
+
+async function runAutoStep(auto) {
+  autoStep = auto.step;
+  setDisabled(true);
+
+  /* Set backend checks to "working" BEFORE the request — they'll pulse during the 30-40s wait */
+  if (auto.step === 1) {
+    setChecksWorking("identity");
+  } else if (auto.step === 2) {
+    setChecksWorking("address");
+  }
+
+  const inner = addMsg("assistant", "");
+  try {
+    const { text: resp, toolCalls } = await streamRequest(auto.reply, inner);
+    if (!resp) { inner.parentElement.remove(); return; }
+    const lastInner = await splitIntoBubbles(resp, inner);
+    /* Complete checks based on actual tool calls */
+    await processToolCalls(toolCalls);
+    if (detectCompletion(resp)) { await delay(600); showCompletionCard(); }
+    const next = detectAutoResponse(resp);
+    if (next) {
+      await delay(1500);
+      promptMockUpload(next);
+    }
+  } catch (err) { inner.innerHTML = `<div class="text-sm text-white">Error: ${err.message}</div>`; }
+}
+
+function handleAutoResponse(fullText) {
+  const auto = detectAutoResponse(fullText);
+  if (auto) {
+    delay(1500).then(() => promptMockUpload(auto));
+  }
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ── completion card ─────────────────────────────────────── */
+
+function detectCompletion(text) {
+  const l = text.toLowerCase();
+  return l.includes("anything else") || l.includes("can i help you with") || l.includes("help you with anything") || l.includes("welcome to bankbricks") || l.includes("onboarding is complete");
+}
+
+let completionShown = false;
+function showCompletionCard() {
+  if (completionShown) return;
+  completionShown = true;
+  const card = document.createElement("div");
+  card.className = "completion-card";
+
+  const accts = selectedAccounts.length > 0 ? selectedAccounts : ["Your Account"];
+  const btnColors = ["bg-db-lava", "bg-purple-600", "bg-blue-600"];
+  const btnsHtml = accts.map((name, i) =>
+    `<button class="acct-btn ${btnColors[i % btnColors.length]}">
+       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+       Access ${name}
+     </button>`
+  ).join("");
+
+  card.innerHTML = `
+    <div class="bg-green-900/40 rounded-xl p-4 text-center border border-green-500/30">
+      <div class="text-3xl mb-2">\ud83c\udf89</div>
+      <p class="text-lg font-bold text-white mb-1">Welcome to BankBricks</p>
+      <p class="text-sm text-green-300 mb-3">Your onboarding is complete</p>
+      <div class="space-y-2">${btnsHtml}</div>
+    </div>
+  `;
+
+  chatArea.insertBefore(card, typingEl);
+  scrollDown();
+}
+
+/* ── send ────────────────────────────────────────────────── */
+
+function resetInput() {
+  inputEl.readOnly = false;
+  inputEl.classList.remove("italic", "opacity-80");
+  inputEl.value = "";
+}
+
+async function sendMessage(text, showAsUser) {
+  if (busy) return;
+  if (showAsUser !== false) addMsg("user", text);
+
+  /* Track user name from first real user message (turn 1 = user gives name) */
+  conversationTurn++;
+  if (conversationTurn === 1 && !userName) {
+    userName = text.trim();
+    updateDataCard("card-name", "verified", userName);
+  }
+
+  setDisabled(true);
+  const inner = addMsg("assistant", "");
+  try {
+    const { text: full, toolCalls } = await streamRequest(text, inner);
+    if (!full) { inner.parentElement.remove(); setDisabled(false); inputEl.focus(); return; }
+    const lastInner = await splitIntoBubbles(full, inner);
+    /* Drive side panels from tool calls */
+    await processToolCalls(toolCalls);
+    maybeShowAccountPicker(full, lastInner);
+    if (detectCompletion(full)) { await delay(600); showCompletionCard(); }
+    handleAutoResponse(full);
+  } catch (err) {
+    inner.innerHTML = `<div class="text-sm text-white">Error: ${err.message}</div>`;
+  }
+  if (!pendingAutoReply) {
+    setDisabled(false);
+    inputEl.focus();
+  }
+}
+
+async function send() {
+  const text = inputEl.value.trim();
+  if (!text || busy) return;
+
+  if (pendingAutoReply) {
+    const auto = pendingAutoReply;
+    pendingAutoReply = null;
+    resetInput();
+    addMsg("user", auto.fileName);
+    await runAutoStep(auto);
+    if (!pendingAutoReply) {
+      setDisabled(false);
+      inputEl.focus();
+    }
+    return;
+  }
+
+  inputEl.value = "";
+  sendMessage(text);
+}
+
+sendBtn.addEventListener("click", send);
+inputEl.addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+
+/* ── auto-welcome ────────────────────────────────────────── */
+(async () => {
+  setDisabled(true);
+  const inner = addMsg("assistant", "");
+  try {
+    const { text: full, toolCalls } = await streamRequest("Hi", inner);
+    if (!full) inner.parentElement.remove();
+    else {
+      const lastInner = await splitIntoBubbles(full, inner);
+      maybeShowAccountPicker(full, lastInner);
+    }
+  } catch { inner.parentElement.remove(); }
+  setDisabled(false);
+  inputEl.focus();
+})();
+</script>
+</body>
+</html>
