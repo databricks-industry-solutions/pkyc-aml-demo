@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 # Databricks Lakehouse for Ongoing KYC/AML: Executive Demo
 
 ## Overview
@@ -210,4 +208,3 @@ This executive demo showcases how Databricks Lakehouse Platform transforms finan
 
 
 
->>>>>>> Incoming (Background Agent changes)
