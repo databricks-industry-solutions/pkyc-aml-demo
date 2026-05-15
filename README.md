@@ -52,16 +52,11 @@ This demo shows the complete journey — from a customer uploading a passport to
 ### CLI Deployment
 
 ```bash
-# 1. Sync notebooks, pipelines, agent source, frontend source, and create
-#    the DLT pipeline + app resource on the workspace
+# Configure CLI with your workspace
 databricks bundle deploy --target dev
-
-# 2. Push the synced app source to the running app compute. DAB syncs app/
-#    files but does not push them to the app; this step is required after
-#    every deploy that changes app/ contents.
-databricks apps deploy kyc-aml-frontend \
-  --source-code-path /Workspace/Users/$(databricks current-user me | jq -r .userName)/.bundle/kyc_aml_demo/dev/files/app
 ```
+
+This syncs notebooks, pipelines, agent source, and the frontend app to the workspace and deploys the DLT pipeline.
 
 **Override variables** at deploy time:
 
@@ -72,6 +67,7 @@ databricks bundle deploy --target dev --var="catalog=my_catalog" --var="schema=m
 ## Prerequisites
 
 - **Databricks workspace** with Unity Catalog enabled
+- **Compute:** Serverless (recommended, default) or DBR 16.4 LTS+
 - **Configure [`notebooks/_shared/config`](notebooks/_shared/config.py)** — set your catalog, schema, table name, and pipeline name before running notebooks
 - **Catalog permissions:** ability to create schemas and tables in the configured catalog
 - **(Scene 2)** Zerobus Ingest enabled + service principal with MODIFY/SELECT on the target table
@@ -98,7 +94,7 @@ A conversational agent walks a customer through onboarding: identity verificatio
 
 | # | Notebook | Purpose |
 |---|----------|---------|
-| 1 | [`01_kyc_data_setup`](notebooks/scene1_kyc_onboarding/01_kyc_data_setup.ipynb) | Create schema, seed tables (PEP, sanctions, fraud, SBI codes), and UC functions |
+| 1 | [`01_kyc_data_setup`](notebooks/scene1_kyc_onboarding/01_kyc_data_setup.ipynb) | Create schema, seed tables (PEP, sanctions, fraud, SBI codes), UC functions, and generate demo document images |
 | 2 | [`02_kyc_agent`](notebooks/scene1_kyc_onboarding/02_kyc_agent.ipynb) | Run the KYC agent interactively in the notebook |
 | 3 | [`03_kyc_agent_deploy`](notebooks/scene1_kyc_onboarding/03_kyc_agent_deploy.ipynb) | Deploy the agent as a Databricks App with Lakebase memory |
 
@@ -140,7 +136,7 @@ pkyc/
 │   │   ├── config.py                       # Edit this: catalog, schema, table names
 │   │   └── sepa_constants.py               # SEPA domain data (companies, locations, currencies)
 │   ├── scene1_kyc_onboarding/
-│   │   ├── 01_kyc_data_setup.ipynb         # Schema, tables, UC functions, volume assets
+│   │   ├── 01_kyc_data_setup.ipynb         # Schema, tables, UC functions, and generate demo document images
 │   │   ├── 02_kyc_agent.ipynb              # KYC agent running in a notebook
 │   │   └── 03_kyc_agent_deploy.ipynb       # Deploy agent as a Databricks App
 │   ├── scene2_txn_screening/
@@ -160,7 +156,7 @@ pkyc/
 ├── pipelines/
 │   ├── sepa_pipeline.py                    # DLT pipeline (bronze -> silver -> gold)
 │   └── requirements.txt                    # Pipeline dependencies
-├── volume_assets/                          # Sample documents (passport, utility bill)
+├── volume_assets/                          # Static assets bundled with the project (images generated at runtime by 01_kyc_data_setup)
 └── scripts/
     └── cleanup.sh                          # Bundle destroy helper
 ```
@@ -225,4 +221,10 @@ bash scripts/cleanup.sh
 | cloudpickle | BSD-3-Clause | cloudpickle contributors |
 | fastapi | MIT | Sebastian Ramirez |
 | uvicorn | BSD-3-Clause | Encode |
-| pg8000 | BSD-3-Clause | The Contributors (PostgreSQL adapter for Lakebase connectivity) |
+| pillow | MIT-CMU | Python Pillow contributors |
+| databricks-connect | Databricks License | Databricks, Inc. |
+| databricks-zerobus-ingest-sdk | Databricks License | Databricks, Inc. |
+| pyspark | Apache 2.0 | Apache Software Foundation |
+| python-dotenv | BSD-3-Clause | Saurabh Kumar |
+| psutil | BSD-3-Clause | Giampaolo Rodola |
+| requests | Apache 2.0 | Kenneth Reitz |
