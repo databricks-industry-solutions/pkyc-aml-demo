@@ -6,6 +6,19 @@
 
 An end-to-end **Know Your Customer / Anti-Money Laundering** demo built on Databricks. It covers AI-powered customer onboarding, real-time transaction screening with ML, and a Chief Compliance Officer dashboard — all wired together with Unity Catalog, Databricks Apps, and Lakeflow.
 
+## Why Databricks?
+
+Financial institutions typically stitch together 5–10 separate tools for KYC compliance: document OCR, screening databases, ML fraud models, streaming infrastructure, BI dashboards, and case management. Each integration adds latency, cost, and regulatory risk.
+
+Databricks replaces this patchwork with **one governed platform**:
+
+- **Faster onboarding** — AI-powered document parsing and real-time screening reduce customer onboarding from days to minutes.
+- **Continuous compliance** — Streaming pipelines score every transaction as it arrives, replacing batch-overnight processes that let suspicious activity slip through.
+- **Lower operational cost** — One platform, one governance model (Unity Catalog), one deployment (Asset Bundles). No glue code between siloed tools.
+- **Audit-ready** — Every data lineage, model version, and screening decision is tracked in Unity Catalog, simplifying regulatory audits.
+
+This demo shows the complete journey — from a customer uploading a passport to the CCO reviewing compliance KPIs — all on Databricks.
+
 ## What it demonstrates
 
 | Capability | How it's used |
