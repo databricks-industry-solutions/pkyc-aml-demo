@@ -22,7 +22,7 @@ jobs:
           python-version: '3.11'
 
       - name: Set up Databricks CLI
-        uses: databricks/setup-cli@main
+        uses: databricks/setup-cli@v0.299.2
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DEPLOY_NOTEBOOK_TOKEN }}
