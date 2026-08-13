@@ -2,7 +2,7 @@
 # For local/spark-pipelines run: pip install -r pipelines/requirements.txt
 # Use >= for numpy/pandas/scipy/scikit-learn so cluster can pick versions with wheels
 flask>=3.0
-mlflow==3.11.1
+mlflow==3.13.0rc0
 cloudpickle==3.1.2
 numpy>=1.26.4
 pandas>=1.5.3
